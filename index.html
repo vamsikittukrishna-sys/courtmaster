@@ -11,9 +11,6 @@
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icon-192.png">
 
-    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
-
     <style>
         body { font-family: -apple-system, sans-serif; background-color: #e3f2fd; padding: 15px; text-align: center; margin: 0; position: relative; min-height: 100vh; overflow-x: hidden; }
         #bg-emoji { position: fixed; bottom: -5vh; right: -5vw; font-size: 50vh; opacity: 0.15; z-index: -1; pointer-events: none; user-select: none; line-height: 1; }
@@ -62,8 +59,6 @@
     </style>
 </head>
 <body>
-
-    <div id="global-cloud-badge" style="position:fixed; top:10px; right:10px; z-index:9999; background:#fff3cd; padding:5px 10px; border-radius:20px; font-size:0.75em; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.1); border:1px solid #ffeeba; color:#856404; pointer-events:none;">☁️ Connecting...</div>
 
     <div id="bg-emoji">🏐</div>
 
@@ -179,9 +174,18 @@
         <div class="table-container"><table><thead><tr><th>Matchup</th><th>Score</th><th>Winner</th><th>Duration</th></tr></thead><tbody id="log-body"></tbody></table></div>
 
         <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 30px;">
-            <button class="btn" style="background:#17a2b8; color:white;" onclick="exportCSV()">Export Stats to CSV</button>
             
-            <div id="dash-danger-buttons" style="display:flex; flex-direction:column; gap:10px;">
+            <div style="background:#f8f9fa; padding:15px; border-radius:8px; border:1px solid #ccc; display:flex; flex-direction:column; gap:10px;">
+                <h4 style="margin:0; color:#555;">Data Management</h4>
+                <button class="btn" style="background:#17a2b8; color:white; margin:0;" onclick="exportCSV()">📊 Export Stats to CSV</button>
+                <div style="display:flex; gap:10px;">
+                    <button class="btn" style="background:#6c757d; color:white; margin:0; flex:1; font-size:0.9em;" onclick="exportBackup()">📤 Export Backup</button>
+                    <button class="btn" style="background:#28a745; color:white; margin:0; flex:1; font-size:0.9em;" onclick="document.getElementById('import-file').click()">📥 Import Backup</button>
+                    <input type="file" id="import-file" style="display:none;" accept=".json" onchange="importBackup(event)">
+                </div>
+            </div>
+
+            <div id="dash-danger-buttons" style="display:flex; flex-direction:column; gap:10px; margin-top:10px;">
                 <button id="btn-archive-season" class="btn" style="background:#6c757d; color:white;" onclick="archiveSeason()">🔒 Archive Season</button>
                 <button class="btn" style="background:#ffc107; color:#333;" onclick="resetStandings()">Reset Standing Stats</button>
                 <button class="btn" style="background:#dc3545; color:white;" onclick="wipeTournament()">HARD RESET (Delete All)</button>
@@ -336,23 +340,9 @@
     </div></div>
 
 <script>
-    const DB_KEY = 'v_tourney_final_115'; 
-    const MATCH_KEY = 'v_active_match_t115';
+    const DB_KEY = 'v_tourney_final_116'; 
+    const MATCH_KEY = 'v_active_match_t116';
     const ARCHIVE_KEY = 'cmp_archives_v1';
-
-    // FIREBASE CLOUD CONFIGURATION
-    const firebaseConfig = {
-        apiKey: "AIzaSyCZxciXrsKowhKqR9RV97LMldJYNpBdYmA",
-        authDomain: "courtmaster-pro.firebaseapp.com",
-        projectId: "courtmaster-pro",
-        storageBucket: "courtmaster-pro.firebasestorage.app",
-        messagingSenderId: "560215452984",
-        appId: "1:560215452984:web:fb035ce7a9d67e4cf965cd"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-    const cloudDoc = db.collection('tournaments').doc('live_data');
-    let localUpdateTimestamp = 0;
     
     let league = JSON.parse(localStorage.getItem(DB_KEY)) || null;
     let match = JSON.parse(localStorage.getItem(MATCH_KEY)) || { t1Idx:0, t2Idx:0, sets:{t1:0, t2:0}, subs:{t1:0, t2:0}, timeouts:{t1:0, t2:0}, score:{t1:0,t2:0}, court:{t1:[],t2:[]}, startingCourt:{t1:[],t2:[]}, libs:{t1:null,t2:null}, winner:null, history:[], isLive:false, firstServers:[], swappedAt8:false, colors:{t1:'#1a73e8', t2:'#d69e2e'}, accumulatedTime: 0, isSwapped: false };
@@ -360,43 +350,6 @@
     let entryIdx = 0, isFlipping = false, timerInt, timeoutInt, activeSide, activeAction, activeSubIdx, wakeLock = null;
     let libAlerted = {t1: false, t2: false};
     let viewingArchive = false;
-
-    // FIREBASE REAL-TIME LISTENER
-    cloudDoc.onSnapshot((doc) => {
-        let badge = document.getElementById('global-cloud-badge');
-        if(badge) { 
-            badge.innerText = "☁️ LiveSync"; 
-            badge.style.color = "#155724"; 
-            badge.style.borderColor = "#c3e6cb"; 
-            badge.style.backgroundColor = "#d4edda"; 
-        }
-        
-        if (doc.exists) {
-            const data = doc.data();
-            // Only pull down data if it is newer than the last local click
-            if (data.lastUpdated > localUpdateTimestamp) {
-                league = data.league || null;
-                match = data.match || { t1Idx:0, t2Idx:0, sets:{t1:0, t2:0}, subs:{t1:0, t2:0}, timeouts:{t1:0, t2:0}, score:{t1:0,t2:0}, court:{t1:[],t2:[]}, startingCourt:{t1:[],t2:[]}, libs:{t1:null,t2:null}, winner:null, history:[], isLive:false, firstServers:[], swappedAt8:false, colors:{t1:'#1a73e8', t2:'#d69e2e'}, accumulatedTime: 0, isSwapped: false };
-                
-                if(!viewingArchive) {
-                    localStorage.setItem(DB_KEY, JSON.stringify(league));
-                    localStorage.setItem(MATCH_KEY, JSON.stringify(match));
-                    
-                    // Seamlessly update the active screen
-                    if (!document.getElementById('scr-match').classList.contains('hidden')) {
-                        if(match.isLive) {
-                            render(); 
-                            document.getElementById('main-scoreboard').classList.toggle('swapped', !!match.isSwapped);
-                        } else {
-                            showDash(); 
-                        }
-                    } else if (!document.getElementById('scr-dash').classList.contains('hidden')) {
-                        showDash(); 
-                    }
-                }
-            }
-        }
-    });
 
     const posNames = ["BR (Srv)", "FR", "FM", "FL", "BL", "BM"];
     const tips = [
@@ -734,12 +687,6 @@
             if (b.setRatio !== a.setRatio) return b.setRatio - a.setRatio;
             return b.ptRatio - a.ptRatio;
         });
-    }
-
-    function updateFixtureTime(idx, val) {
-        if(viewingArchive) return;
-        league.fixtures[idx].scheduledTime = val;
-        save();
     }
 
     function showDash() {
@@ -1235,9 +1182,51 @@
         }
     }
 
+    // NEW: DATA MANAGEMENT SYSTEM
     function exportCSV() { 
         let csv = "TEAM STANDINGS\nTeam,Wins,Points,SetsWon,SetsLost,PtsWon,PtsLost\n" + league.teams.map(t=>`${t.name},${t.wins},${t.points},${t.setsWon},${t.setsLost},${t.rallyPointsWon},${t.rallyPointsLost}`).join("\n") + "\n\nPLAYER ANALYTICS\nPlayer,Team,Pts,Kills,Blocks,Aces,Errors\n" + league.teams.map(t=>t.roster.map(p=>`${p.name},${t.name},${p.won},${p.kills},${p.blocks},${p.aces},${p.errors}`).join("\n")).join("\n"); 
         let b = new Blob([csv],{type:'text/csv'}), a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'Tournament_Stats.csv'; a.click(); 
+    }
+
+    function exportBackup() {
+        if(!league) return alert("No active tournament to export.");
+        let data = { league: league, match: match };
+        let blob = new Blob([JSON.stringify(data)], { type: "application/json" });
+        let a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        let dateStr = new Date().toISOString().slice(0,10);
+        a.download = `CourtMaster_Backup_${dateStr}.json`;
+        a.click();
+    }
+
+    function importBackup(event) {
+        let file = event.target.files[0];
+        if (!file) return;
+        
+        if(league && !confirm("Warning: Importing a backup will overwrite the current tournament on this device. Proceed?")) {
+            event.target.value = ""; // Reset input
+            return;
+        }
+
+        let reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                let data = JSON.parse(e.target.result);
+                if (data.league) {
+                    league = data.league;
+                    match = data.match || { t1Idx:0, t2Idx:0, sets:{t1:0, t2:0}, subs:{t1:0, t2:0}, timeouts:{t1:0, t2:0}, score:{t1:0,t2:0}, court:{t1:[],t2:[]}, startingCourt:{t1:[],t2:[]}, libs:{t1:null,t2:null}, winner:null, history:[], isLive:false, firstServers:[], swappedAt8:false, colors:{t1:'#1a73e8', t2:'#d69e2e'}, accumulatedTime: 0, isSwapped: false };
+                    save();
+                    alert("Backup Imported Successfully!");
+                    location.reload();
+                } else {
+                    alert("Error: Invalid backup file format.");
+                }
+            } catch(err) {
+                alert("Error reading file. Make sure it is a valid CourtMaster JSON file.");
+            }
+            event.target.value = ""; // Reset input
+        };
+        reader.readAsText(file);
     }
     
     function resetStandings() { 
@@ -1260,51 +1249,15 @@
     }
     
     function abortMatch() { if(confirm("Abort match? This will completely erase the current match data.")) { clearInterval(timerInt); match.isLive = false; showDash(); } }
-    
-    function saveState() { 
-        let h = match.history; 
-        match.history=[]; 
-        let s = {m:JSON.stringify(match), l:JSON.stringify(league)}; 
-        match.history=h; 
-        match.history.push(s); 
-    }
-    
+    function saveState() { let h = match.history; match.history=[]; let s = {m:JSON.stringify(match), l:JSON.stringify(league)}; match.history=h; match.history.push(s); }
     function undo() { 
         if(match.history.length) { 
             let s = match.history.pop(); match = JSON.parse(s.m); league = JSON.parse(s.l); 
             document.getElementById('main-scoreboard').classList.toggle('swapped', !!match.isSwapped);
             render(); 
-            
-            // Instantly push the undo to the cloud
-            localUpdateTimestamp = Date.now();
-            cloudDoc.set({ league: league, match: match, lastUpdated: localUpdateTimestamp });
         } else alert("No actions to undo."); 
     }
-    
-    // FIREBASE CLOUD PUSH
-    function save() { 
-        if(!viewingArchive) { 
-            localStorage.setItem(DB_KEY, JSON.stringify(league)); 
-            if(match.isLive) localStorage.setItem(MATCH_KEY, JSON.stringify(match)); 
-            
-            localUpdateTimestamp = Date.now();
-            cloudDoc.set({
-                league: league,
-                match: match,
-                lastUpdated: localUpdateTimestamp
-            }).catch(e => {
-                console.error(e);
-                let badge = document.getElementById('global-cloud-badge');
-                if(badge) { 
-                    badge.innerText = "☁️ Offline"; 
-                    badge.style.color = "#842029"; 
-                    badge.style.borderColor = "#f5c6cb"; 
-                    badge.style.backgroundColor = "#f8d7da"; 
-                }
-            });
-        } 
-    }
-    
+    function save() { if(!viewingArchive) { localStorage.setItem(DB_KEY, JSON.stringify(league)); if(match.isLive) localStorage.setItem(MATCH_KEY, JSON.stringify(match)); } }
     function wipeTournament() { 
         if(!checkAdminPin()) return;
         if(confirm("WARNING: WIPE ALL DATA FOREVER?")) { localStorage.clear(); location.reload(); } 
