@@ -1,6 +1,6 @@
 {
   "name": "CourtMaster Pro",
-  "short_name": "CourtMaster",
+  "short_name": "CourtMaster Pro",
   "description": "Professional Offline Volleyball Tournament Manager",
   "start_url": "./index.html",
   "display": "standalone",
