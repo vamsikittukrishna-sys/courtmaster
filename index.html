@@ -12,7 +12,7 @@
     <link rel="apple-touch-icon" href="icon-192.png">
 
     <style>
-        body { font-family: -apple-system, sans-serif; background-color: #e3f2fd; padding: 15px; text-align: center; margin: 0; position: relative; min-height: 100vh; overflow-x: hidden; }
+        body { font-family: -apple-system, sans-serif; background-color: #e3f2fd; padding: 15px; text-align: center; margin: 0; position: relative; min-height: 100vh; overflow-x: hidden; overscroll-behavior-y: none; }
         #bg-emoji { position: fixed; bottom: -5vh; right: -5vw; font-size: 35vh; opacity: 0.15; z-index: -1; pointer-events: none; user-select: none; line-height: 1; }
         
         .card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(8px); padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: inline-block; text-align: left; width: 100%; max-width: 750px; box-sizing: border-box; position: relative; z-index: 10; }
@@ -135,7 +135,10 @@
             <h3 id="roster-title" style="margin:0;"></h3>
             <select id="jump-team" style="width:auto; margin:0;" onchange="jumpToTeam(this.value)"></select>
         </div>
-        <input type="text" id="entry-team-name" placeholder="Team Name">
+        <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
+            <input type="text" id="entry-team-name" placeholder="Team Name" style="flex:1; margin:0;">
+            <input type="color" id="entry-team-color" style="width:50px; height:44px; padding:2px; border-radius:8px; border:1px solid #ccc; cursor:pointer; margin:0;" title="Team Jersey Color">
+        </div>
         <div id="roster-inputs-container" style="margin-top:10px;"></div>
         <div style="display:flex; gap:10px;">
             <button id="btn-prev-team" class="btn" style="background:#6c757d; color:white; flex:1;" onclick="prevTeam()">← Back</button>
@@ -174,7 +177,6 @@
         <div class="table-container"><table><thead><tr><th>Matchup</th><th>Score</th><th>Winner</th><th>Duration</th></tr></thead><tbody id="log-body"></tbody></table></div>
 
         <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 30px;">
-            
             <div style="background:#f8f9fa; padding:15px; border-radius:8px; border:1px solid #ccc; display:flex; flex-direction:column; gap:10px;">
                 <h4 style="margin:0; color:#555;">Data Management</h4>
                 <button class="btn" style="background:#17a2b8; color:white; margin:0;" onclick="exportCSV()">📊 Export Stats to CSV</button>
@@ -220,13 +222,13 @@
 
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
             <div style="flex:1; min-width:240px; background:#f8f9fa; padding:15px; border-radius:12px; border-top: 5px solid #ccc;" id="setup-card-t1">
-                <select id="sel-t1" onchange="buildLineupUI('t1')"></select>
+                <select id="sel-t1" onchange="applyTeamDefaults('t1')"></select>
                 Color: <input type="color" id="col-t1" value="#1a73e8" onchange="updateColors()">
                 <div id="lineup-t1" style="margin-top:10px;"></div>
                 Libero: <select id="lib-t1"></select>
             </div>
             <div style="flex:1; min-width:240px; background:#f8f9fa; padding:15px; border-radius:12px; border-top: 5px solid #ccc;" id="setup-card-t2">
-                <select id="sel-t2" onchange="buildLineupUI('t2')"></select>
+                <select id="sel-t2" onchange="applyTeamDefaults('t2')"></select>
                 Color: <input type="color" id="col-t2" value="#d69e2e" onchange="updateColors()">
                 <div id="lineup-t2" style="margin-top:10px;"></div>
                 Libero: <select id="lib-t2"></select>
@@ -290,10 +292,9 @@
 
     <div id="modal-pt-type" class="modal"><div class="modal-content">
         <h3 style="margin-top:0;">Rally Outcome</h3>
-        <button class="player-btn" onclick="setPtAction('Kill')">💥 Spike / Kill</button>
-        <button class="player-btn" onclick="setPtAction('Block')">🧱 Block Point</button>
-        <button class="player-btn" onclick="setPtAction('Ace')">🎯 Service Ace</button>
-        <button class="player-btn" style="background:#fff5f5; border-color:#c53030; color:#c53030;" onclick="setPtAction('Error')">❌ Opponent Error</button>
+        
+        <div id="dynamic-pt-buttons" style="display: flex; flex-direction: column; gap: 5px;"></div>
+        
         <button class="btn" style="background:none; color:#1a73e8; margin-top:10px;" onclick="document.getElementById('modal-pt-type').style.display='none'">Cancel</button>
     </div></div>
     
@@ -340,16 +341,24 @@
     </div></div>
 
 <script>
-    const DB_KEY = 'v_tourney_final_116'; 
-    const MATCH_KEY = 'v_active_match_t116';
+    const DB_KEY = 'v_tourney_final_119'; 
+    const MATCH_KEY = 'v_active_match_t119';
     const ARCHIVE_KEY = 'cmp_archives_v1';
     
     let league = JSON.parse(localStorage.getItem(DB_KEY)) || null;
-    let match = JSON.parse(localStorage.getItem(MATCH_KEY)) || { t1Idx:0, t2Idx:0, sets:{t1:0, t2:0}, subs:{t1:0, t2:0}, timeouts:{t1:0, t2:0}, score:{t1:0,t2:0}, court:{t1:[],t2:[]}, startingCourt:{t1:[],t2:[]}, libs:{t1:null,t2:null}, winner:null, history:[], isLive:false, firstServers:[], swappedAt8:false, colors:{t1:'#1a73e8', t2:'#d69e2e'}, accumulatedTime: 0, isSwapped: false };
+    let match = JSON.parse(localStorage.getItem(MATCH_KEY)) || { t1Idx:0, t2Idx:0, sets:{t1:0, t2:0}, subs:{t1:0, t2:0}, timeouts:{t1:0, t2:0}, score:{t1:0,t2:0}, court:{t1:[],t2:[]}, startingCourt:{t1:[],t2:[]}, libs:{t1:null,t2:null}, winner:null, history:[], isLive:false, isPaused: false, firstServers:[], swappedAt8:false, colors:{t1:'#1a73e8', t2:'#d69e2e'}, accumulatedTime: 0, isSwapped: false };
     
     let entryIdx = 0, isFlipping = false, timerInt, timeoutInt, activeSide, activeAction, activeSubIdx, wakeLock = null;
     let libAlerted = {t1: false, t2: false};
     let viewingArchive = false;
+
+    document.addEventListener("visibilitychange", function() {
+        if (document.visibilityState === 'hidden' && match && match.isLive && !match.isPaused) {
+            match.accumulatedTime = (match.accumulatedTime || 0) + Math.floor((Date.now() - match.startTime) / 1000);
+            match.startTime = Date.now();
+            localStorage.setItem(MATCH_KEY, JSON.stringify(match));
+        }
+    });
 
     const posNames = ["BR (Srv)", "FR", "FM", "FL", "BL", "BM"];
     const tips = [
@@ -418,7 +427,7 @@
             document.getElementById('display-tourney-name').innerText = "CourtMaster Pro";
         }
         
-        if(match.isLive && !viewingArchive) resumeMatch();
+        if(match.isLive && !match.isPaused && !viewingArchive) resumeMatch();
     };
 
     function hideAll() { document.querySelectorAll('.card, #scr-match').forEach(c => c.classList.add('hidden')); }
@@ -525,7 +534,8 @@
         for(let i=0; i<parseInt(sizeVal); i++) {
             league.teams.push({ 
                 name: `Team ${i+1}`, roster: [], wins:0, points:0, 
-                setsWon:0, setsLost:0, rallyPointsWon:0, rallyPointsLost:0 
+                setsWon:0, setsLost:0, rallyPointsWon:0, rallyPointsLost:0,
+                color: (i % 2 === 0 ? '#1a73e8' : '#d69e2e'), lastLineup: null, lastLibero: null 
             });
         }
         
@@ -542,6 +552,7 @@
         hideAll(); document.getElementById('scr-roster').classList.remove('hidden');
         document.getElementById('roster-title').innerText = `Roster Setup ${entryIdx + 1}/${league.teams.length}`;
         document.getElementById('entry-team-name').value = league.teams[entryIdx].name;
+        document.getElementById('entry-team-color').value = league.teams[entryIdx].color;
         document.getElementById('jump-team').value = entryIdx;
         document.getElementById('btn-prev-team').disabled = (entryIdx === 0);
         
@@ -572,6 +583,7 @@
             if(n || m) players.push({ num: n, n: m });
         });
         league.teams[entryIdx].name = document.getElementById('entry-team-name').value.trim() || `Team ${entryIdx+1}`;
+        league.teams[entryIdx].color = document.getElementById('entry-team-color').value;
         league.teams[entryIdx].roster_temp = players;
     }
 
@@ -596,6 +608,7 @@
         if(players.length < 6) return alert("Roster Error: Minimum 6 players required per team.");
         
         league.teams[entryIdx].name = document.getElementById('entry-team-name').value.trim() || league.teams[entryIdx].name;
+        league.teams[entryIdx].color = document.getElementById('entry-team-color').value;
         league.teams[entryIdx].roster = players;
         
         if(entryIdx < league.teams.length-1) { entryIdx++; startRoster(); } 
@@ -845,7 +858,16 @@
             btnCancel.innerText = "⏸️ Pause to Dashboard";
         }
         
-        buildLineupUI('t1', true); buildLineupUI('t2', true); updateColors();
+        applyTeamDefaults('t1'); applyTeamDefaults('t2');
+        buildLineupUI('t1', true); buildLineupUI('t2', true); 
+    }
+
+    function applyTeamDefaults(side) {
+        let tIdx = document.getElementById('sel-'+side).value;
+        let t = league.teams[tIdx];
+        document.getElementById('col-'+side).value = t.color || (side === 't1' ? '#1a73e8' : '#d69e2e');
+        updateColors();
+        buildLineupUI(side, false);
     }
 
     function syncToss() {
@@ -864,6 +886,8 @@
                 let isSelected = false;
                 if (preserveState && match.startingCourt && match.startingCourt[side] && match.startingCourt[side].length > 0) {
                     isSelected = (match.startingCourt[side][i] === p.name);
+                } else if (!preserveState && t.lastLineup && t.lastLineup.length === 6) {
+                    isSelected = (t.lastLineup[i] === p.name);
                 } else {
                     isSelected = (idx === i); 
                 }
@@ -873,7 +897,13 @@
         }
         document.getElementById('lineup-'+side).innerHTML = html;
         
-        let libOpts = t.roster.map(p => `<option value="${p.name}" ${preserveState && match.libs && match.libs[side] === p.name ? 'selected' : ''}>${p.name}</option>`).join('');
+        let libOpts = t.roster.map(p => {
+            let isLibSelected = false;
+            if(preserveState && match.libs && match.libs[side] === p.name) isLibSelected = true;
+            else if (!preserveState && t.lastLibero === p.name) isLibSelected = true;
+            return `<option value="${p.name}" ${isLibSelected ? 'selected' : ''}>${p.name}</option>`;
+        }).join('');
+        
         document.getElementById('lib-'+side).innerHTML = `<option value="">None</option>${libOpts}`;
         
         if(side==='t2') syncToss();
@@ -929,8 +959,15 @@
         match.startingCourt = { t1: [...t1S], t2: [...t2S] }; 
         match.court.t1 = t1S.map(n => ({name: n})); match.court.t2 = t2S.map(n => ({name: n}));
         match.libs = {t1: document.getElementById('lib-t1').value, t2: document.getElementById('lib-t2').value};
+        
+        league.teams[match.t1Idx].lastLineup = [...t1S];
+        league.teams[match.t1Idx].lastLibero = match.libs.t1;
+        league.teams[match.t2Idx].lastLineup = [...t2S];
+        league.teams[match.t2Idx].lastLibero = match.libs.t2;
+
         match.score = {t1:0, t2:0}; match.timeouts = {t1:0, t2:0}; match.subs = {t1:0, t2:0}; 
         match.winner = srv; match.swappedAt8 = false; match.isLive = true; 
+        match.isPaused = false; 
         match.startTime = Date.now();
         libAlerted = {t1: false, t2: false};
         
@@ -974,6 +1011,7 @@
     }
 
     function pauseToDash() {
+        match.isPaused = true; 
         match.accumulatedTime = (match.accumulatedTime || 0) + Math.floor((Date.now() - match.startTime) / 1000);
         clearInterval(timerInt);
         saveState();
@@ -981,6 +1019,7 @@
     }
 
     function resumeMatch() {
+        match.isPaused = false; 
         hideAll(); document.getElementById('scr-match').classList.remove('hidden');
         document.getElementById('m-name-t1').innerText = league.teams[match.t1Idx].name; document.getElementById('m-name-t1').style.backgroundColor = match.colors.t1;
         document.getElementById('m-name-t2').innerText = league.teams[match.t2Idx].name; document.getElementById('m-name-t2').style.backgroundColor = match.colors.t2;
@@ -1015,11 +1054,30 @@
     }
     function endTimeout() { clearInterval(timeoutInt); document.getElementById('modal-timeout').style.display='none'; }
 
-    function openPtModal(s) { activeSide = s; document.getElementById('modal-pt-type').style.display='flex'; }
+    // FIX: DYNAMIC UI MODAL
+    function openPtModal(s) { 
+        activeSide = s; 
+        
+        // Build buttons dynamically based on serving logic
+        let btnHTML = `<button class="player-btn" onclick="setPtAction('Kill')">💥 Spike / Kill</button>
+                       <button class="player-btn" onclick="setPtAction('Block')">🧱 Block Point</button>`;
+        
+        // Only show Service Ace if the selected team is currently serving
+        if(match.winner === s) {
+            btnHTML += `<button class="player-btn" onclick="setPtAction('Ace')">🎯 Service Ace</button>`;
+        }
+        
+        btnHTML += `<button class="player-btn" style="background:#fff5f5; border-color:#c53030; color:#c53030;" onclick="setPtAction('Error')">❌ Opponent Error</button>`;
+        
+        document.getElementById('dynamic-pt-buttons').innerHTML = btnHTML;
+        document.getElementById('modal-pt-type').style.display='flex'; 
+    }
+    
     function goBackToPtType() { document.getElementById('modal-pt-player').style.display = 'none'; document.getElementById('modal-pt-type').style.display = 'flex'; }
     
     function setPtAction(act) {
         activeAction = act; document.getElementById('modal-pt-type').style.display='none';
+        
         if(act==='Ace') { 
             let sName = match.court[activeSide][0].name; 
             if(sName === match.libs[activeSide]) {
@@ -1116,21 +1174,33 @@
         if((s1>=target || s2>=target) && Math.abs(s1-s2)>=2) {
             let win = s1 > s2 ? 't1' : 't2'; 
             let lose = s1 > s2 ? 't2' : 't1';
-            match.sets[win]++;
             
-            if(!match.isScrimmage) { 
-                league.teams[match[win+'Idx']].setsWon++; 
-                league.teams[match[lose+'Idx']].setsLost++;
+            setTimeout(() => {
+                let winName = league.teams[match[win+'Idx']].name;
+                let isMatchOver = (match.sets[win] + 1 >= Math.ceil(match.maxSets/2));
+                let msg = isMatchOver 
+                    ? `🏆 MATCH POINT OVER! ${winName} wins the Match!\n\nClick OK to finalize. Click Cancel to UNDO the last point.` 
+                    : `🏐 SET POINT OVER! ${winName} wins the Set!\n\nClick OK to confirm. Click Cancel to UNDO the last point.`;
                 
-                league.teams[match.t1Idx].rallyPointsWon += s1;
-                league.teams[match.t1Idx].rallyPointsLost += s2;
-                league.teams[match.t2Idx].rallyPointsWon += s2;
-                league.teams[match.t2Idx].rallyPointsLost += s1;
+                if(confirm(msg)) {
+                    match.sets[win]++;
+                    if(!match.isScrimmage) { 
+                        league.teams[match[win+'Idx']].setsWon++; 
+                        league.teams[match[lose+'Idx']].setsLost++;
+                        
+                        league.teams[match.t1Idx].rallyPointsWon += s1;
+                        league.teams[match.t1Idx].rallyPointsLost += s2;
+                        league.teams[match.t2Idx].rallyPointsWon += s2;
+                        league.teams[match.t2Idx].rallyPointsLost += s1;
 
-                league.log.push({m:`${league.teams[match.t1Idx].name} vs ${league.teams[match.t2Idx].name}`, s:`${s1}-${s2}`, w:league.teams[match[win+'Idx']].name, t:document.getElementById('set-timer').innerText}); 
-            }
-            if(match.sets[win] >= Math.ceil(match.maxSets/2)) finishMatch(win); 
-            else nextSet();
+                        league.log.push({m:`${league.teams[match.t1Idx].name} vs ${league.teams[match.t2Idx].name}`, s:`${s1}-${s2}`, w:league.teams[match[win+'Idx']].name, t:document.getElementById('set-timer').innerText}); 
+                    }
+                    if(isMatchOver) finishMatch(win); 
+                    else nextSet();
+                } else {
+                    undo(); 
+                }
+            }, 50); 
         }
     }
 
@@ -1162,7 +1232,7 @@
             league.fixtures[match.currentFixture].done = true;
         }
         match.isLive = false; match.sets = {t1:0, t2:0}; localStorage.removeItem(MATCH_KEY); save(); 
-        alert("Match Over!"); showDash(); 
+        alert("Match Saved to Dashboard!"); showDash(); 
     }
     
     function nextSet() { 
@@ -1182,7 +1252,6 @@
         }
     }
 
-    // NEW: DATA MANAGEMENT SYSTEM
     function exportCSV() { 
         let csv = "TEAM STANDINGS\nTeam,Wins,Points,SetsWon,SetsLost,PtsWon,PtsLost\n" + league.teams.map(t=>`${t.name},${t.wins},${t.points},${t.setsWon},${t.setsLost},${t.rallyPointsWon},${t.rallyPointsLost}`).join("\n") + "\n\nPLAYER ANALYTICS\nPlayer,Team,Pts,Kills,Blocks,Aces,Errors\n" + league.teams.map(t=>t.roster.map(p=>`${p.name},${t.name},${p.won},${p.kills},${p.blocks},${p.aces},${p.errors}`).join("\n")).join("\n"); 
         let b = new Blob([csv],{type:'text/csv'}), a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'Tournament_Stats.csv'; a.click(); 
@@ -1204,7 +1273,7 @@
         if (!file) return;
         
         if(league && !confirm("Warning: Importing a backup will overwrite the current tournament on this device. Proceed?")) {
-            event.target.value = ""; // Reset input
+            event.target.value = ""; 
             return;
         }
 
@@ -1214,7 +1283,7 @@
                 let data = JSON.parse(e.target.result);
                 if (data.league) {
                     league = data.league;
-                    match = data.match || { t1Idx:0, t2Idx:0, sets:{t1:0, t2:0}, subs:{t1:0, t2:0}, timeouts:{t1:0, t2:0}, score:{t1:0,t2:0}, court:{t1:[],t2:[]}, startingCourt:{t1:[],t2:[]}, libs:{t1:null,t2:null}, winner:null, history:[], isLive:false, firstServers:[], swappedAt8:false, colors:{t1:'#1a73e8', t2:'#d69e2e'}, accumulatedTime: 0, isSwapped: false };
+                    match = data.match || { t1Idx:0, t2Idx:0, sets:{t1:0, t2:0}, subs:{t1:0, t2:0}, timeouts:{t1:0, t2:0}, score:{t1:0,t2:0}, court:{t1:[],t2:[]}, startingCourt:{t1:[],t2:[]}, libs:{t1:null,t2:null}, winner:null, history:[], isLive:false, isPaused: false, firstServers:[], swappedAt8:false, colors:{t1:'#1a73e8', t2:'#d69e2e'}, accumulatedTime: 0, isSwapped: false };
                     save();
                     alert("Backup Imported Successfully!");
                     location.reload();
@@ -1224,7 +1293,7 @@
             } catch(err) {
                 alert("Error reading file. Make sure it is a valid CourtMaster JSON file.");
             }
-            event.target.value = ""; // Reset input
+            event.target.value = ""; 
         };
         reader.readAsText(file);
     }
