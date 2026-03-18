@@ -11,6 +11,9 @@
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icon-192.png">
 
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+
     <style>
         body { font-family: -apple-system, sans-serif; background-color: #e3f2fd; padding: 15px; text-align: center; margin: 0; position: relative; min-height: 100vh; overflow-x: hidden; }
         #bg-emoji { position: fixed; bottom: -5vh; right: -5vw; font-size: 50vh; opacity: 0.15; z-index: -1; pointer-events: none; user-select: none; line-height: 1; }
@@ -59,6 +62,8 @@
     </style>
 </head>
 <body>
+
+    <div id="global-cloud-badge" style="position:fixed; top:10px; right:10px; z-index:9999; background:#fff3cd; padding:5px 10px; border-radius:20px; font-size:0.75em; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.1); border:1px solid #ffeeba; color:#856404; pointer-events:none;">☁️ Connecting...</div>
 
     <div id="bg-emoji">🏐</div>
 
@@ -331,9 +336,23 @@
     </div></div>
 
 <script>
-    const DB_KEY = 'v_tourney_final_114'; 
-    const MATCH_KEY = 'v_active_match_t114';
+    const DB_KEY = 'v_tourney_final_115'; 
+    const MATCH_KEY = 'v_active_match_t115';
     const ARCHIVE_KEY = 'cmp_archives_v1';
+
+    // FIREBASE CLOUD CONFIGURATION
+    const firebaseConfig = {
+        apiKey: "AIzaSyCZxciXrsKowhKqR9RV97LMldJYNpBdYmA",
+        authDomain: "courtmaster-pro.firebaseapp.com",
+        projectId: "courtmaster-pro",
+        storageBucket: "courtmaster-pro.firebasestorage.app",
+        messagingSenderId: "560215452984",
+        appId: "1:560215452984:web:fb035ce7a9d67e4cf965cd"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const cloudDoc = db.collection('tournaments').doc('live_data');
+    let localUpdateTimestamp = 0;
     
     let league = JSON.parse(localStorage.getItem(DB_KEY)) || null;
     let match = JSON.parse(localStorage.getItem(MATCH_KEY)) || { t1Idx:0, t2Idx:0, sets:{t1:0, t2:0}, subs:{t1:0, t2:0}, timeouts:{t1:0, t2:0}, score:{t1:0,t2:0}, court:{t1:[],t2:[]}, startingCourt:{t1:[],t2:[]}, libs:{t1:null,t2:null}, winner:null, history:[], isLive:false, firstServers:[], swappedAt8:false, colors:{t1:'#1a73e8', t2:'#d69e2e'}, accumulatedTime: 0, isSwapped: false };
@@ -341,6 +360,43 @@
     let entryIdx = 0, isFlipping = false, timerInt, timeoutInt, activeSide, activeAction, activeSubIdx, wakeLock = null;
     let libAlerted = {t1: false, t2: false};
     let viewingArchive = false;
+
+    // FIREBASE REAL-TIME LISTENER
+    cloudDoc.onSnapshot((doc) => {
+        let badge = document.getElementById('global-cloud-badge');
+        if(badge) { 
+            badge.innerText = "☁️ LiveSync"; 
+            badge.style.color = "#155724"; 
+            badge.style.borderColor = "#c3e6cb"; 
+            badge.style.backgroundColor = "#d4edda"; 
+        }
+        
+        if (doc.exists) {
+            const data = doc.data();
+            // Only pull down data if it is newer than the last local click
+            if (data.lastUpdated > localUpdateTimestamp) {
+                league = data.league || null;
+                match = data.match || { t1Idx:0, t2Idx:0, sets:{t1:0, t2:0}, subs:{t1:0, t2:0}, timeouts:{t1:0, t2:0}, score:{t1:0,t2:0}, court:{t1:[],t2:[]}, startingCourt:{t1:[],t2:[]}, libs:{t1:null,t2:null}, winner:null, history:[], isLive:false, firstServers:[], swappedAt8:false, colors:{t1:'#1a73e8', t2:'#d69e2e'}, accumulatedTime: 0, isSwapped: false };
+                
+                if(!viewingArchive) {
+                    localStorage.setItem(DB_KEY, JSON.stringify(league));
+                    localStorage.setItem(MATCH_KEY, JSON.stringify(match));
+                    
+                    // Seamlessly update the active screen
+                    if (!document.getElementById('scr-match').classList.contains('hidden')) {
+                        if(match.isLive) {
+                            render(); 
+                            document.getElementById('main-scoreboard').classList.toggle('swapped', !!match.isSwapped);
+                        } else {
+                            showDash(); 
+                        }
+                    } else if (!document.getElementById('scr-dash').classList.contains('hidden')) {
+                        showDash(); 
+                    }
+                }
+            }
+        }
+    });
 
     const posNames = ["BR (Srv)", "FR", "FM", "FL", "BL", "BM"];
     const tips = [
@@ -459,7 +515,6 @@
         location.reload(); 
     }
 
-    // NEW: Centralized PIN Verification
     function checkAdminPin() {
         if (!league || !league.adminPin || league.adminPin === "0000" || league.adminPin === "") return true;
         let entered = prompt("🔒 Security Lock: Enter 4-Digit Director PIN to authorize this action:");
@@ -502,7 +557,6 @@
         let pType = document.getElementById('prac-schedule-type').value;
         let pPerDay = parseInt(document.getElementById('prac-matches-per-day').value) || 1;
 
-        // NEW: Grab the PIN
         let aPin = document.getElementById('league-pin').value.trim();
         if (aPin && !/^\d{4}$/.test(aPin)) return alert("Error: Director PIN must be exactly 4 digits.");
         if (!aPin) aPin = "0000";
@@ -1206,15 +1260,50 @@
     }
     
     function abortMatch() { if(confirm("Abort match? This will completely erase the current match data.")) { clearInterval(timerInt); match.isLive = false; showDash(); } }
-    function saveState() { let h = match.history; match.history=[]; let s = {m:JSON.stringify(match), l:JSON.stringify(league)}; match.history=h; match.history.push(s); }
+    
+    function saveState() { 
+        let h = match.history; 
+        match.history=[]; 
+        let s = {m:JSON.stringify(match), l:JSON.stringify(league)}; 
+        match.history=h; 
+        match.history.push(s); 
+    }
+    
     function undo() { 
         if(match.history.length) { 
             let s = match.history.pop(); match = JSON.parse(s.m); league = JSON.parse(s.l); 
             document.getElementById('main-scoreboard').classList.toggle('swapped', !!match.isSwapped);
             render(); 
+            
+            // Instantly push the undo to the cloud
+            localUpdateTimestamp = Date.now();
+            cloudDoc.set({ league: league, match: match, lastUpdated: localUpdateTimestamp });
         } else alert("No actions to undo."); 
     }
-    function save() { if(!viewingArchive) { localStorage.setItem(DB_KEY, JSON.stringify(league)); if(match.isLive) localStorage.setItem(MATCH_KEY, JSON.stringify(match)); } }
+    
+    // FIREBASE CLOUD PUSH
+    function save() { 
+        if(!viewingArchive) { 
+            localStorage.setItem(DB_KEY, JSON.stringify(league)); 
+            if(match.isLive) localStorage.setItem(MATCH_KEY, JSON.stringify(match)); 
+            
+            localUpdateTimestamp = Date.now();
+            cloudDoc.set({
+                league: league,
+                match: match,
+                lastUpdated: localUpdateTimestamp
+            }).catch(e => {
+                console.error(e);
+                let badge = document.getElementById('global-cloud-badge');
+                if(badge) { 
+                    badge.innerText = "☁️ Offline"; 
+                    badge.style.color = "#842029"; 
+                    badge.style.borderColor = "#f5c6cb"; 
+                    badge.style.backgroundColor = "#f8d7da"; 
+                }
+            });
+        } 
+    }
     
     function wipeTournament() { 
         if(!checkAdminPin()) return;
