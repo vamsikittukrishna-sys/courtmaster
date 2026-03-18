@@ -1,4 +1,4 @@
-const CACHE_NAME = 'courtmaster-pro-v5';
+const CACHE_NAME = 'courtmaster-pro-v6';
 const urlsToCache = [
   './',
   './index.html',
