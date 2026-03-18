@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CourtMaster Pro</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#1a73e8">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
+    <style>
+        body { font-family: -apple-system, sans-serif; background-color: #e3f2fd; padding: 15px; text-align: center; margin: 0; position: relative; min-height: 100vh; overflow-x: hidden; }
+        #bg-emoji { position: fixed; bottom: -5vh; right: -5vw; font-size: 50vh; opacity: 0.15; z-index: -1; pointer-events: none; user-select: none; line-height: 1; }
+        
+        .card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(8px); padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: inline-block; text-align: left; width: 100%; max-width: 750px; box-sizing: border-box; position: relative; z-index: 10; }
+        .hidden { display: none !important; }
+        
+        input, select { padding: 12px; margin: 6px 0; border: 1px solid #ccc; border-radius: 8px; width: 100%; box-sizing: border-box; font-size: 16px; }
+        select:disabled { background-color: #e9ecef; cursor: not-allowed; opacity: 0.8; color:#333; }
+        .btn { padding: 15px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; width: 100%; margin-top: 10px; font-size: 16px; transition: 0.2s; }
+        .btn:active { transform: scale(0.98); }
+        .btn-blue { background: #1a73e8; color: white; }
+        .btn-green { background: #28a745; color: white; }
+        
+        .table-container { overflow-x: auto; margin-bottom: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85em; white-space: nowrap; }
+        th, td { border-bottom: 1px solid #ddd; padding: 10px; text-align: left; vertical-align: middle; }
+        th { background: #f8f9fa; font-weight: bold; }
+        .win-pt { color: #28a745; font-weight: bold; }
+        .lose-pt { color: #d93025; font-weight: bold; }
+
+        .scoreboard { display: flex; gap: 10px; justify-content: center; margin-top: 10px; transition: all 0.3s ease; }
+        .swapped { flex-direction: row-reverse; }
+        .team-box { border: 2px solid #333; padding: 15px; border-radius: 10px; background: white; flex: 1; text-align: center; }
+        #m-name-t1, #m-name-t2 { text-shadow: 1px 1px 4px rgba(0,0,0,0.7); } 
+        .score-val { font-size: 55px; font-weight: bold; margin: 5px 0; line-height: 1; }
+        .stat-row { display: flex; justify-content: space-between; font-size: 0.75em; color: #666; font-weight: bold; margin-bottom: 5px; }
+        .rot-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #ddd; font-size: 0.85em; align-items: center; }
+        
+        .badge { font-size: 0.7em; padding: 4px 6px; border-radius: 4px; font-weight: bold; min-width: 45px; text-align: center; display: inline-block; }
+        .fr { background: #e3f2fd; color: #0d47a1; }
+        .br { background: #f1f8e9; color: #1b5e20; }
+        .libero-text { color: #e67e22; font-weight: bold; font-style: italic; }
+        
+        .coin-container { perspective: 1000px; display: flex; justify-content: center; margin: 15px 0; }
+        .coin { width: 90px; height: 90px; position: relative; transform-style: preserve-3d; transition: transform 2s cubic-bezier(0.2, 0.8, 0.2, 1); }
+        .coin-face { position: absolute; width: 100%; height: 100%; border-radius: 50%; backface-visibility: hidden; display: flex; justify-content: center; align-items: center; font-weight: bold; border: 4px solid #fff; box-shadow: 0 4px 8px rgba(0,0,0,0.2); padding: 5px; text-align: center; overflow: hidden; font-size: 0.7em; text-transform: uppercase; }
+        .coin-front { background: #ffc107; color: #333; }
+        .coin-back { background: #1a73e8; color: white; transform: rotateY(180deg); }
+        
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: none; justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background: white; padding: 25px; border-radius: 12px; width: 320px; max-height: 80vh; overflow-y: auto; }
+        .player-btn { background: #e3f2fd; border: 1px solid #1a73e8; padding: 12px; margin: 5px 0; width: 100%; border-radius: 8px; cursor: pointer; font-weight: bold; text-align: left; }
+        
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <div id="bg-emoji">🏐</div>
+
+    <div id="scr-home" class="card">
+        <h1 id="display-tourney-name" style="color: #1a73e8; margin-top: 0;">CourtMaster Pro</h1>
+        <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 5px solid #ffc107;">
+            <strong>💡 Match Tip:</strong> <span id="daily-tip"></span>
+        </div>
+        <button id="btn-home-start" class="btn btn-blue" onclick="startNewTournament()">Start New Season</button>
+        <button id="btn-home-dash" class="btn btn-green hidden" onclick="showDash()">Resume Current Season</button>
+        <button class="btn" style="background:#e9ecef; color:#333;" onclick="openArchives()">📂 View Past Seasons</button>
+    </div>
+
+    <div id="scr-init" class="card hidden">
+        <h2>Tournament Setup</h2>
+        <input type="text" id="league-name-input" placeholder="Season / Tournament Name">
+        
+        <div style="display: flex; gap: 10px; margin-top: 10px;">
+            <div style="flex: 1;"><span style="font-size:0.85em; font-weight:bold; color:#555;">Teams:</span> <input type="text" id="league-size" value="4" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')"></div>
+            <div style="flex: 1;"><span style="font-size:0.85em; font-weight:bold; color:#555;">Official Rounds:</span> <input type="text" id="league-rounds" value="1" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')"></div>
+        </div>
+
+        <div style="margin-top: 15px; background:#f8f9fa; padding:10px; border-radius:8px; border:1px solid #ccc;">
+            <strong style="color:#1a73e8;">Official Match Schedule</strong>
+            <div style="display: flex; gap: 10px; margin-top: 5px;">
+                <div style="flex: 2;"><span style="font-size:0.85em; font-weight:bold; color:#555;">Start Date:</span> <input type="date" id="league-start-date"></div>
+                <div style="flex: 1;"><span style="font-size:0.85em; font-weight:bold; color:#555;">Per Day:</span> <input type="text" id="league-matches-per-day" value="2" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')"></div>
+            </div>
+            <div style="margin-top: 5px; text-align:left;">
+                <span style="font-size:0.85em; font-weight:bold; color:#555;">Rules:</span>
+                <select id="league-schedule-type">
+                    <option value="everyday">Everyday</option>
+                    <option value="weekdays">Weekdays Only (Mon-Fri)</option>
+                    <option value="weekends" selected>Weekends Only (Sat-Sun)</option>
+                </select>
+            </div>
+        </div>
+
+        <div style="margin-top: 15px; text-align:left; background:#fff; padding:10px; border-radius:8px; border:1px solid #ddd;">
+            <label style="font-weight:bold; color:#1a73e8; cursor:pointer;"><input type="checkbox" id="enable-practice" onchange="document.getElementById('practice-config').style.display = this.checked ? 'flex' : 'none'" style="width:auto; margin-right:8px;"> Enable Practice Phase</label>
+            <div id="practice-config" style="display:none; flex-direction:column; gap:10px; margin-top:10px; border-top:1px dashed #ccc; padding-top:10px;">
+                <div style="display:flex; gap:10px;">
+                    <div style="flex: 1;"><span style="font-size:0.85em; font-weight:bold; color:#555;">Practice Rounds:</span> <input type="text" id="practice-rounds" value="1" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')"></div>
+                    <div style="flex: 1;"><span style="font-size:0.85em; font-weight:bold; color:#555;">Per Day:</span> <input type="text" id="prac-matches-per-day" value="2" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')"></div>
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <div style="flex: 1;"><span style="font-size:0.85em; font-weight:bold; color:#555;">Start Date:</span> <input type="date" id="prac-start-date"></div>
+                    <div style="flex: 1;"><span style="font-size:0.85em; font-weight:bold; color:#555;">Rules:</span>
+                        <select id="prac-schedule-type">
+                            <option value="everyday">Everyday</option>
+                            <option value="weekdays" selected>Weekdays (Mon-Fri)</option>
+                            <option value="weekends">Weekends (Sat-Sun)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button class="btn btn-blue" style="margin-top:20px;" onclick="initLeague()">Create Registry</button>
+        <button class="btn" style="background:none; color: #555;" onclick="goHome()">Cancel</button>
+    </div>
+
+    <div id="scr-roster" class="card hidden">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <h3 id="roster-title" style="margin:0;"></h3>
+            <select id="jump-team" style="width:auto; margin:0;" onchange="jumpToTeam(this.value)"></select>
+        </div>
+        <input type="text" id="entry-team-name" placeholder="Team Name">
+        <div id="roster-inputs-container" style="margin-top:10px;"></div>
+        <div style="display:flex; gap:10px;">
+            <button id="btn-prev-team" class="btn" style="background:#6c757d; color:white; flex:1;" onclick="prevTeam()">← Back</button>
+            <button id="btn-save-team" class="btn btn-blue" style="flex:2;" onclick="saveTeamRoster()"></button>
+        </div>
+    </div>
+
+    <div id="scr-dash" class="card hidden">
+        
+        <div id="archive-banner" class="hidden" style="background:#dc3545; color:white; padding:15px; border-radius:8px; margin-bottom:20px; font-weight:bold; display:flex; justify-content:space-between; align-items:center;">
+            <span>READ-ONLY ARCHIVE MODE</span>
+            <button class="btn" style="width:auto; margin:0; padding:6px 12px; background:white; color:#dc3545;" onclick="exitArchive()">Exit Archive</button>
+        </div>
+
+        <button id="btn-dash-home" class="btn btn-blue" onclick="goHome()">← Back Home</button>
+        
+        <h3 style="color:#1a73e8;">Match Schedule & Fixtures</h3>
+        <div class="table-container"><table><thead><tr><th>Matchup</th><th>Schedule</th><th id="hdr-action">Action</th></tr></thead><tbody id="fixture-body"></tbody></table></div>
+        
+        <div id="dash-action-buttons">
+            <button id="btn-generate-playoffs" class="btn btn-green hidden" style="margin-bottom:20px; box-shadow: 0 4px 6px rgba(40,167,69,0.3);" onclick="generatePlayoffs()">🏆 Generate Playoffs</button>
+            <button class="btn btn-blue" style="background:#6c757d;" onclick="startCustomMatch()">Custom Scrimmage Match</button>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px;">
+            <h3 style="color:#1a73e8; margin:0;">Team Standings (FIVB)</h3>
+            <button id="btn-edit-teams" class="btn btn-blue" style="width:auto; margin:0; padding:6px 12px; font-size:0.85em;" onclick="editTeamsFromDash()">✏️ Edit Teams</button>
+        </div>
+        
+        <div class="table-container" style="margin-top:10px;"><table><thead><tr><th>Team</th><th>W</th><th>Pts</th><th>Set Ratio</th><th>Pt Ratio</th></tr></thead><tbody id="team-body"></tbody></table></div>
+
+        <h3 style="color:#1a73e8;">Player Analytics</h3>
+        <div class="table-container"><table><thead><tr><th>Player</th><th>Team</th><th class="win-pt">Total</th><th>Kills</th><th>Blocks</th><th>Aces</th><th class="lose-pt">Errors</th></tr></thead><tbody id="leader-body"></tbody></table></div>
+
+        <h3 style="color:#1a73e8;">Set History Log</h3>
+        <div class="table-container"><table><thead><tr><th>Matchup</th><th>Score</th><th>Winner</th><th>Duration</th></tr></thead><tbody id="log-body"></tbody></table></div>
+
+        <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 30px;">
+            <button class="btn" style="background:#17a2b8; color:white;" onclick="exportCSV()">Export Stats to CSV</button>
+            
+            <div id="dash-danger-buttons" style="display:flex; flex-direction:column; gap:10px;">
+                <button id="btn-archive-season" class="btn" style="background:#6c757d; color:white;" onclick="archiveSeason()">🔒 Archive Season</button>
+                <button class="btn" style="background:#ffc107; color:#333;" onclick="resetStandings()">Reset Standing Stats</button>
+                <button class="btn" style="background:#dc3545; color:white;" onclick="wipeTournament()">HARD RESET (Delete All)</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="scr-setup" class="card hidden">
+        <h2>Match Configuration</h2>
+        
+        <div id="toss-box" style="background:#e3f2fd; padding:15px; border-radius:8px; border:1px solid #bbdefb; margin-bottom:15px;">
+            <h4 style="margin:0 0 10px 0;">Official Toss Protocol</h4>
+            <div class="coin-container"><div class="coin" id="digital-coin"><div class="coin-face coin-front" id="coin-t1">T1</div><div class="coin-face coin-back" id="coin-t2">T2</div></div></div>
+            <button id="btn-flip" class="btn" style="background:#ffc107; color:#333;" onclick="flipDigitalCoin()">Flip Coin</button>
+            
+            <div style="display:flex; gap:12px;">
+                <select id="toss-winner" onchange="handleTossChange()"></select>
+                <select id="toss-choice" onchange="handleTossChange()">
+                    <option value="serve">Winner Serves</option>
+                    <option value="receive">Winner Receives</option>
+                    <option value="court">Winner Picks Side</option>
+                </select>
+            </div>
+            <p id="srv-note" style="font-size:0.85em; color:#e67e22; margin:10px 0 0 0; font-style:italic; font-weight:bold;"></p>
+            
+            <div style="margin-top:10px; background:white; padding:10px; border-radius:8px; border:1px solid #ddd;">
+                <strong>Select Starting Server:</strong><br>
+                <input type="radio" name="srv" id="rad-t1" value="t1" checked style="width:auto;"> <label id="rad-lbl-t1" for="rad-t1"></label> | 
+                <input type="radio" name="srv" id="rad-t2" value="t2" style="width:auto;"> <label id="rad-lbl-t2" for="rad-t2"></label>
+            </div>
+        </div>
+
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <div style="flex:1; min-width:240px; background:#f8f9fa; padding:15px; border-radius:12px; border-top: 5px solid #ccc;" id="setup-card-t1">
+                <select id="sel-t1" onchange="buildLineupUI('t1')"></select>
+                Color: <input type="color" id="col-t1" value="#1a73e8" onchange="updateColors()">
+                <div id="lineup-t1" style="margin-top:10px;"></div>
+                Libero: <select id="lib-t1"></select>
+            </div>
+            <div style="flex:1; min-width:240px; background:#f8f9fa; padding:15px; border-radius:12px; border-top: 5px solid #ccc;" id="setup-card-t2">
+                <select id="sel-t2" onchange="buildLineupUI('t2')"></select>
+                Color: <input type="color" id="col-t2" value="#d69e2e" onchange="updateColors()">
+                <div id="lineup-t2" style="margin-top:10px;"></div>
+                Libero: <select id="lib-t2"></select>
+            </div>
+        </div>
+        
+        <div id="match-config-row" style="display:flex; gap:10px; margin-top:15px; background:#e3f2fd; padding:10px; border-radius:8px;">
+            <div style="flex:1;">Sets: <select id="match-len" style="margin:0;"><option value="1">1 Set</option><option value="3">Best of 3</option><option value="5">Best of 5</option></select></div>
+            <div style="flex:1;">Deciding: <select id="deciding-len" style="margin:0;"><option value="15">To 15</option><option value="25">To 25</option></select></div>
+        </div>
+        
+        <button id="btn-start-match" class="btn btn-green" onclick="launchMatch()">LIT THE COURT</button>
+        <button id="btn-cancel-match" class="btn" style="background:#6c757d; color:white; margin-top:10px;" onclick="cancelMatchSetup()">Cancel / Back to Schedule</button>
+    </div>
+
+    <div id="scr-match" class="hidden">
+        
+        <div style="background:white; padding:10px; border-radius:12px; display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+            <button class="btn" style="width:auto; margin:0; padding:10px; font-size:0.85em; background:#6c757d; color:white;" onclick="pauseToDash()">⏸️ Pause</button>
+            <button class="btn" style="width:auto; margin:0; padding:10px; font-size:0.85em;" onclick="swapSides()">Swap ↔️</button>
+            <div id="set-timer" style="font-weight:bold; font-size:1.2em; color:#333; min-width:60px; text-align:center;">00:00</div>
+            <button class="btn" style="width:auto; margin:0; padding:10px; font-size:0.85em; background:#dc3545; color:white;" onclick="abortMatch()">Abort 🛑</button>
+        </div>
+        
+        <div class="scoreboard" id="main-scoreboard">
+            <div class="team-box" id="box-t1">
+                <h4 id="m-name-t1" style="margin:0 0 5px 0; color:white; padding:8px; border-radius:8px; text-transform:uppercase;"></h4>
+                <div class="stat-row">
+                    <span id="m-sets-t1" style="color:#1a73e8;">Sets: 0</span>
+                    <span id="m-subs-t1">Subs: 0/6</span>
+                    <span id="m-to-t1" style="color:#dc3545;">T.O: 0/2</span>
+                </div>
+                <div id="m-score-t1" class="score-val">0</div>
+                <div style="display:flex; gap:5px;">
+                    <button class="btn btn-green" onclick="openPtModal('t1')" style="flex:3;">POINT +</button>
+                    <button class="btn" onclick="useTimeout('t1')" style="flex:1; background:#ffebee; color:#c53030; font-size:0.75em; padding:10px 5px;">T.O.</button>
+                </div>
+                <div id="m-disp-t1" style="text-align:left; margin-top:20px;"></div>
+            </div>
+            <div class="team-box" id="box-t2">
+                <h4 id="m-name-t2" style="margin:0 0 5px 0; color:white; padding:8px; border-radius:8px; text-transform:uppercase;"></h4>
+                <div class="stat-row">
+                    <span id="m-sets-t2" style="color:#1a73e8;">Sets: 0</span>
+                    <span id="m-subs-t2">Subs: 0/6</span>
+                    <span id="m-to-t2" style="color:#dc3545;">T.O: 0/2</span>
+                </div>
+                <div id="m-score-t2" class="score-val">0</div>
+                <div style="display:flex; gap:5px;">
+                    <button class="btn btn-green" onclick="openPtModal('t2')" style="flex:3;">POINT +</button>
+                    <button class="btn" onclick="useTimeout('t2')" style="flex:1; background:#ffebee; color:#c53030; font-size:0.75em; padding:10px 5px;">T.O.</button>
+                </div>
+                <div id="m-disp-t2" style="text-align:left; margin-top:20px;"></div>
+            </div>
+        </div>
+        
+        <div style="display:flex; gap:10px; margin-top:20px;">
+            <button class="btn" style="background:#6c757d; color:white; flex:2; margin:0;" onclick="undo()">Undo Last Rally</button>
+            <button class="btn" style="background:#dc3545; color:white; flex:1; margin:0;" onclick="forfeitMatch()">🚨 Forfeit</button>
+        </div>
+    </div>
+
+    <div id="modal-pt-type" class="modal"><div class="modal-content">
+        <h3 style="margin-top:0;">Rally Outcome</h3>
+        <button class="player-btn" onclick="setPtAction('Kill')">💥 Spike / Kill</button>
+        <button class="player-btn" onclick="setPtAction('Block')">🧱 Block Point</button>
+        <button class="player-btn" onclick="setPtAction('Ace')">🎯 Service Ace</button>
+        <button class="player-btn" style="background:#fff5f5; border-color:#c53030; color:#c53030;" onclick="setPtAction('Error')">❌ Opponent Error</button>
+        <button class="btn" style="background:none; color:#1a73e8; margin-top:10px;" onclick="document.getElementById('modal-pt-type').style.display='none'">Cancel</button>
+    </div></div>
+    
+    <div id="modal-pt-player" class="modal"><div class="modal-content">
+        <h3 id="pt-player-title" style="margin-top:0;">Select Player</h3>
+        <div id="pt-player-list"></div>
+        <button class="btn" style="background:none; color:#1a73e8; margin-top:10px;" onclick="goBackToPtType()">← Back</button>
+    </div></div>
+    
+    <div id="modal-sub" class="modal"><div class="modal-content">
+        <h3 style="margin-top:0;">Substitution</h3>
+        <select id="sub-select"></select>
+        <button class="btn btn-green" onclick="confirmSub()">Confirm Sub</button>
+        <button class="btn" style="background:none; color:#1a73e8;" onclick="document.getElementById('modal-sub').style.display='none'">Cancel</button>
+    </div></div>
+    
+    <div id="modal-timeout" class="modal"><div class="modal-content">
+        <h1 style="margin-top:0; color:#dc3545;">TIMEOUT</h1>
+        <h2 id="to-team-name"></h2>
+        <div id="to-timer-display" style="font-size:5em; font-weight:bold; color:#1a73e8; margin: 15px 0;">30</div>
+        <button class="btn btn-blue" onclick="endTimeout()">RESUME PLAY</button>
+    </div></div>
+
+    <div id="lib-alert-modal" class="modal" style="background: rgba(230, 126, 34, 0.95); z-index: 3000;">
+        <div style="text-align:center; padding: 20px; color: white;">
+            <h1 style="font-size: 2.5em; margin-top:0;">⚠️ LIBERO SERVING</h1>
+            <p id="lib-alert-txt" style="font-size: 1.2em; font-weight: bold;"></p>
+            <button class="btn" style="background:white; color:#e67e22; width:200px;" onclick="document.getElementById('lib-alert-modal').style.display='none'">ACKNOWLEDGE</button>
+        </div>
+    </div>
+
+    <div id="modal-forfeit" class="modal"><div class="modal-content">
+        <h3 style="margin-top:0; color:#dc3545;">Forfeit Match</h3>
+        <p style="font-size: 0.9em; color: #555;">Select the team that is forfeiting the match. This automatically awards maximum points to the opponent and cannot be undone.</p>
+        <select id="forfeit-select" style="margin-bottom: 15px;"></select>
+        <button class="btn" style="background:#dc3545; color:white;" onclick="confirmForfeit()">Confirm Forfeit</button>
+        <button class="btn" style="background:none; color:#1a73e8;" onclick="document.getElementById('modal-forfeit').style.display='none'">Cancel</button>
+    </div></div>
+
+    <div id="modal-archives" class="modal"><div class="modal-content">
+        <h2 style="margin-top:0; color:#1a73e8;">Past Seasons</h2>
+        <div id="archive-list" style="display:flex; flex-direction:column; gap:10px;"></div>
+        <button class="btn" style="background:none; color:#555; margin-top:15px;" onclick="document.getElementById('modal-archives').style.display='none'">Close</button>
+    </div></div>
+
+<script>
+    const DB_KEY = 'v_tourney_final_113'; 
+    const MATCH_KEY = 'v_active_match_t113';
+    const ARCHIVE_KEY = 'cmp_archives_v1';
+    
+    let league = JSON.parse(localStorage.getItem(DB_KEY)) || null;
+    let match = JSON.parse(localStorage.getItem(MATCH_KEY)) || { t1Idx:0, t2Idx:0, sets:{t1:0, t2:0}, subs:{t1:0, t2:0}, timeouts:{t1:0, t2:0}, score:{t1:0,t2:0}, court:{t1:[],t2:[]}, startingCourt:{t1:[],t2:[]}, libs:{t1:null,t2:null}, winner:null, history:[], isLive:false, firstServers:[], swappedAt8:false, colors:{t1:'#1a73e8', t2:'#d69e2e'}, accumulatedTime: 0, isSwapped: false };
+    
+    let entryIdx = 0, isFlipping = false, timerInt, timeoutInt, activeSide, activeAction, activeSubIdx, wakeLock = null;
+    let libAlerted = {t1: false, t2: false};
+    let viewingArchive = false;
+
+    const posNames = ["BR (Srv)", "FR", "FM", "FL", "BL", "BM"];
+    const tips = [
+        "Rule Check: Outside Hitters must start diagonally opposite each other.",
+        "FIVB Rule: A Libero replacement is not considered a regular substitution.",
+        "Deciding Sets: Teams must swap sides at point 8 (or 13 if playing to 25).",
+        "Rule Check: Back-row players cannot participate in a block at the net.",
+        "A set must be won with a minimum 2-point lead. There is no hard point cap.",
+        "Libero Rule: They cannot legally score via a Spike, Block, or Service Ace.",
+        "Earth Court Strategy: Dirt surfaces create lower bounces; stay low on defense!",
+        "A block contact does NOT count as the team's first of three allowed touches.",
+        "Rule Check: It is a fault to touch the net while actively playing the ball.",
+        "Communication: Always call 'Mine!' early and loudly to prevent collisions.",
+        "Serve Strategy: Deep serves are highly effective on outdoor earth courts.",
+        "Defense: Watch the server's tossing arm to predict the speed and trajectory.",
+        "Rule Check: Double contacts are legal on a team's first hard-driven defensive hit.",
+        "Setters: Always try to square your shoulders to the left antenna before setting.",
+        "Blockers: Press your hands over the net to seal the angle, don't just reach straight up.",
+        "Hitters: Ensure your final two approach steps are fast and explosive.",
+        "Earth Court Strategy: Anticipate the sun! Win the toss and make them stare into the glare.",
+        "Rule Check: You cannot block or spike an opponent's serve back at them.",
+        "Defense: Read the hitter's approach angle and shoulder drop to anticipate the spike.",
+        "A 'float serve' is highly effective outdoors where the wind makes it move unpredictably.",
+        "Rule Check: If a player crosses the center line completely with their foot, it's a fault.",
+        "Communication: Bench players should call 'In!' or 'Out!' to help the receivers.",
+        "Passers: Keep your platform away from your body to allow for quick angle adjustments.",
+        "Hitters: Snap your wrist at the peak of your jump to create heavy, dropping topspin.",
+        "Defense: Stay on the balls of your feet, not your heels, for explosive reaction times.",
+        "Blocking: The outside blocker sets the position; the middle blocker closes the seam.",
+        "Rule Check: If the ball hits the antenna at any time, it is immediately out of bounds.",
+        "Liberos: You are the defensive captain. Verbally command the back-row formation.",
+        "Earth Court Strategy: Wind in your face? Hit harder. Wind at your back? Use heavy topspin.",
+        "Rule Check: Never catch, scoop, or throw the ball; contacts must be brief and clean.",
+        "Setters: A 'dump' to the center of the court is a great way to catch the defense sleeping.",
+        "Momentum: Always celebrate the good points and instantly shake off the errors.",
+        "Mental Toughness: Volleyball isn't timed. You are never out of it until the final whistle.",
+        "Warmup: Proper shoulder activation is critical before attempting heavy spikes.",
+        "Rule Check: The Libero must wear a jersey of a contrasting color to the rest of the team.",
+        "Setters: If the pass is too tight to the net, jump to set it to avoid a back-row attack fault.",
+        "Defense: When digging a hard spike, angle your platform toward the center of the court.",
+        "Hitters: Use a 'tip' or 'dink' when you notice the opposing defense playing too deep.",
+        "Middle Blockers: Always transition off the net quickly so you are available for a quick set.",
+        "Servers: Take a deep breath and visualize your target zone before tossing the ball.",
+        "Rule Check: The ball may touch various parts of the body provided contacts are simultaneous.",
+        "Hydration: Outdoor matches drain energy fast. Drink water during every single timeout.",
+        "Strategy: Use your two timeouts strategically to break an opponent's scoring run.",
+        "Hitters: A 'tool' off the blocker's outside hand is just as valuable as a hard kill.",
+        "Defense: Don't swing your arms on a dig; let the ball hit your platform and absorb it.",
+        "Setters: You are the quarterback. Make the hitter's job as easy as possible.",
+        "Blockers: Keep your eyes open while blocking so you can see the hitter's arm swing.",
+        "Serve Strategy: Target the seam between two passers to cause confusion.",
+        "Earth Court Strategy: Deep, loose dirt will kill your jump height. Time your approach carefully.",
+        "Rule Check: A back-row player jumping from behind the 3-meter line may land inside it."
+    ];
+
+    async function requestWakeLock() { try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch(e){} }
+
+    window.onload = () => {
+        document.getElementById('daily-tip').innerText = tips[Math.floor(Math.random() * tips.length)];
+        
+        if(league) { 
+            document.getElementById('btn-home-dash').classList.remove('hidden'); 
+            document.getElementById('display-tourney-name').innerText = league.name; 
+        } else {
+            document.getElementById('btn-home-dash').classList.add('hidden');
+            document.getElementById('display-tourney-name').innerText = "CourtMaster Pro";
+        }
+        
+        if(match.isLive && !viewingArchive) resumeMatch();
+    };
+
+    function hideAll() { document.querySelectorAll('.card, #scr-match').forEach(c => c.classList.add('hidden')); }
+    
+    function goHome() { 
+        if(viewingArchive) { exitArchive(); return; }
+        hideAll(); 
+        document.getElementById('daily-tip').innerText = tips[Math.floor(Math.random() * tips.length)];
+        
+        if(league) { 
+            document.getElementById('btn-home-dash').classList.remove('hidden'); 
+            document.getElementById('display-tourney-name').innerText = league.name; 
+        } else {
+            document.getElementById('btn-home-dash').classList.add('hidden');
+            document.getElementById('display-tourney-name').innerText = "CourtMaster Pro";
+        }
+        
+        document.getElementById('scr-home').classList.remove('hidden'); 
+    }
+    
+    function startNewTournament() { 
+        if(league && !confirm("Warning: Starting a new season will overwrite current data. Please Archive the current season first if you wish to save it. Proceed?")) return; 
+        hideAll(); 
+        document.getElementById('league-start-date').valueAsDate = new Date();
+        document.getElementById('prac-start-date').valueAsDate = new Date();
+        document.getElementById('scr-init').classList.remove('hidden'); 
+    }
+
+    function openArchives() {
+        let archives = JSON.parse(localStorage.getItem(ARCHIVE_KEY)) || [];
+        let html = archives.map((a, i) => `<button class="player-btn" style="background:#f8f9fa; border-color:#ccc;" onclick="loadArchive(${i})">${a.archiveName} <br><span style="font-size:0.8em; font-weight:normal; color:#666;">Archived: ${a.archiveDate}</span></button>`).join('');
+        if(!html) html = "<p style='color:#666;'>No archived seasons found.</p>";
+        document.getElementById('archive-list').innerHTML = html;
+        document.getElementById('modal-archives').style.display = 'flex';
+    }
+
+    function loadArchive(i) {
+        let archives = JSON.parse(localStorage.getItem(ARCHIVE_KEY)) || [];
+        league = archives[i];
+        viewingArchive = true;
+        document.getElementById('modal-archives').style.display = 'none';
+        showDash();
+    }
+
+    function exitArchive() {
+        viewingArchive = false;
+        location.reload(); 
+    }
+
+    function archiveSeason() {
+        if(confirm("Archive this season? It will be saved permanently, and the active dashboard will be cleared so you can start a new season.")) {
+            let archName = prompt("Enter a name for this Archive (e.g., Spring League 2026):", league.name);
+            if(!archName) return;
+            
+            let archives = JSON.parse(localStorage.getItem(ARCHIVE_KEY)) || [];
+            league.archiveName = archName;
+            league.archiveDate = new Date().toLocaleDateString();
+            archives.push(league);
+            localStorage.setItem(ARCHIVE_KEY, JSON.stringify(archives));
+            
+            localStorage.removeItem(DB_KEY);
+            localStorage.removeItem(MATCH_KEY);
+            alert("Season Archived Successfully!");
+            location.reload();
+        }
+    }
+
+    function initLeague() {
+        const name = document.getElementById('league-name-input').value.trim() || "Championship Tournament";
+        const sizeVal = document.getElementById('league-size').value;
+        const roundVal = document.getElementById('league-rounds').value;
+        const sDate = document.getElementById('league-start-date').value;
+        const sType = document.getElementById('league-schedule-type').value;
+        const mPerDay = parseInt(document.getElementById('league-matches-per-day').value) || 1;
+        
+        let pEnabled = document.getElementById('enable-practice').checked;
+        let pRounds = pEnabled ? (parseInt(document.getElementById('practice-rounds').value) || 0) : 0;
+        let pDate = document.getElementById('prac-start-date').value;
+        let pType = document.getElementById('prac-schedule-type').value;
+        let pPerDay = parseInt(document.getElementById('prac-matches-per-day').value) || 1;
+
+        if(!sizeVal || isNaN(sizeVal) || sizeVal < 2) return alert("Error: Enter a valid team count (Min 2).");
+        if(!roundVal || isNaN(roundVal) || roundVal < 1) return alert("Error: Enter valid round count (Min 1).");
+        
+        league = { 
+            name, teams: [], log: [], fixtures: [], rounds: parseInt(roundVal), practiceRounds: pRounds, playoffStage: 0,
+            schedulePrefs: { startDate: sDate, type: sType, matchesPerDay: mPerDay },
+            practicePrefs: { startDate: pDate, type: pType, matchesPerDay: pPerDay }
+        };
+        for(let i=0; i<parseInt(sizeVal); i++) {
+            league.teams.push({ 
+                name: `Team ${i+1}`, roster: [], wins:0, points:0, 
+                setsWon:0, setsLost:0, rallyPointsWon:0, rallyPointsLost:0 
+            });
+        }
+        
+        document.getElementById('jump-team').innerHTML = league.teams.map((t,i) => `<option value="${i}">Team ${i+1}</option>`).join('');
+        entryIdx = 0; startRoster();
+    }
+
+    function editTeamsFromDash() { entryIdx = 0; startRoster(); }
+
+    function startRoster() {
+        hideAll(); document.getElementById('scr-roster').classList.remove('hidden');
+        document.getElementById('roster-title').innerText = `Roster Setup ${entryIdx + 1}/${league.teams.length}`;
+        document.getElementById('entry-team-name').value = league.teams[entryIdx].name;
+        document.getElementById('jump-team').value = entryIdx;
+        document.getElementById('btn-prev-team').disabled = (entryIdx === 0);
+        
+        let isMidTourney = league.fixtures && league.fixtures.length > 0;
+        document.getElementById('btn-save-team').innerText = entryIdx === league.teams.length-1 ? (isMidTourney ? "Save & Return to Dash" : "Finalize Registry") : "Next Team →";
+        
+        let rosterHTML = '';
+        const currentRoster = league.teams[entryIdx].roster_temp || league.teams[entryIdx].roster || [];
+        for(let i=0; i<12; i++) {
+            let p = currentRoster[i] || {num: '', n: ''};
+            rosterHTML += `
+            <div style="display:flex; gap:8px;">
+                <input type="text" class="p-num" placeholder="#" style="width:30%" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" value="${p.num || ''}">
+                <input type="text" class="p-name" placeholder="Full Name" style="width:70%" value="${p.n || ''}">
+            </div>`;
+        }
+        document.getElementById('roster-inputs-container').innerHTML = rosterHTML;
+    }
+
+    function jumpToTeam(idx) { saveToTemp(); entryIdx = parseInt(idx); startRoster(); }
+    function prevTeam() { if(entryIdx > 0) { saveToTemp(); entryIdx--; startRoster(); } }
+    
+    function saveToTemp() {
+        let players = [];
+        document.querySelectorAll('#roster-inputs-container div').forEach(div => {
+            let n = div.querySelector('.p-num').value.trim();
+            let m = div.querySelector('.p-name').value.trim();
+            if(n || m) players.push({ num: n, n: m });
+        });
+        league.teams[entryIdx].name = document.getElementById('entry-team-name').value.trim() || `Team ${entryIdx+1}`;
+        league.teams[entryIdx].roster_temp = players;
+    }
+
+    function saveTeamRoster() {
+        let players = [], jerseys = new Set(), nameRegex = /^[a-zA-Z\s]+$/, valid = true;
+        
+        document.querySelectorAll('#roster-inputs-container div').forEach(div => {
+            let n = div.querySelector('.p-num').value.trim(), m = div.querySelector('.p-name').value.trim();
+            if(n || m) {
+                if(!n) { alert(`Validation Error: Player "${m}" is missing a jersey number.`); valid = false; }
+                else if(!m) { alert(`Validation Error: Jersey #${n} is missing a player name.`); valid = false; }
+                else if(!nameRegex.test(m)) { alert(`Validation Error: Names must contain letters only ("${m}").`); valid = false; }
+                else if(jerseys.has(n)) { alert(`Duplicate Error: Jersey #${n} already used on this team.`); valid = false; }
+                else {
+                    jerseys.add(n); 
+                    players.push({ name: `#${n} ${m}`, won:0, kills:0, blocks:0, aces:0, errors:0, num: n, n: m });
+                }
+            }
+        });
+        
+        if(!valid) return; 
+        if(players.length < 6) return alert("Roster Error: Minimum 6 players required per team.");
+        
+        league.teams[entryIdx].name = document.getElementById('entry-team-name').value.trim() || league.teams[entryIdx].name;
+        league.teams[entryIdx].roster = players;
+        
+        if(entryIdx < league.teams.length-1) { entryIdx++; startRoster(); } 
+        else { 
+            if(!league.fixtures || league.fixtures.length === 0) {
+                genFixtures(); 
+                applyAutoSchedule();
+            }
+            save(); showDash(); 
+        }
+    }
+
+    function genFixtures() {
+        let teams = league.teams.map((_, i) => i); if(teams.length % 2 !== 0) teams.push(-1);
+        league.fixtures = [];
+
+        if(league.practiceRounds > 0) {
+            for(let r=0; r<league.practiceRounds; r++) {
+                let tmp = [...teams];
+                for(let i=0; i<tmp.length-1; i++) {
+                    for(let j=0; j<tmp.length/2; j++) {
+                        if(tmp[j]!==-1 && tmp[tmp.length-1-j]!==-1) {
+                            league.fixtures.push({t1:tmp[j], t2:tmp[tmp.length-1-j], done:false, type:'Practice', scheduledTime: ''});
+                        }
+                    }
+                    tmp.splice(1, 0, tmp.pop());
+                }
+            }
+        }
+
+        for(let r=0; r<league.rounds; r++) {
+            let tmp = [...teams];
+            for(let i=0; i<tmp.length-1; i++) {
+                for(let j=0; j<tmp.length/2; j++) {
+                    if(tmp[j]!==-1 && tmp[tmp.length-1-j]!==-1) {
+                        league.fixtures.push({t1:tmp[j], t2:tmp[tmp.length-1-j], done:false, type:'Pool Play', scheduledTime: ''});
+                    }
+                }
+                tmp.splice(1, 0, tmp.pop());
+            }
+        }
+    }
+
+    function calculateScheduleDates(fixtures, prefs) {
+        if(!prefs || !prefs.startDate) return;
+        let parts = prefs.startDate.split('-');
+        let currentDate = new Date(parts[0], parts[1]-1, parts[2]); 
+        let matchesToday = 0;
+        let maxPerDay = prefs.matchesPerDay || 1;
+
+        fixtures.forEach(f => {
+            if(f.scheduledTime && f.done) return; 
+
+            while(true) {
+                let day = currentDate.getDay();
+                let isWeekend = (day === 0 || day === 6);
+                if(prefs.type === 'weekdays' && isWeekend) { currentDate.setDate(currentDate.getDate() + 1); matchesToday = 0; continue; }
+                if(prefs.type === 'weekends' && !isWeekend) { currentDate.setDate(currentDate.getDate() + 1); matchesToday = 0; continue; }
+                break;
+            }
+
+            f.scheduledTime = currentDate.toLocaleDateString('en-US', {weekday: 'short', month:'short', day:'numeric'});
+            matchesToday++;
+            if(matchesToday >= maxPerDay) {
+                currentDate.setDate(currentDate.getDate() + 1);
+                matchesToday = 0;
+            }
+        });
+    }
+
+    function applyAutoSchedule() {
+        if (league.practiceRounds > 0 && league.practicePrefs) {
+            calculateScheduleDates(league.fixtures.filter(f => f.type === 'Practice'), league.practicePrefs);
+        }
+        if (league.schedulePrefs) {
+            calculateScheduleDates(league.fixtures.filter(f => f.type !== 'Practice'), league.schedulePrefs);
+        }
+    }
+
+    function getSortedTeams() {
+        return [...league.teams].map((t, index) => {
+            t.originalIndex = index; 
+            t.setRatio = t.setsLost === 0 ? (t.setsWon > 0 ? 999 : 0) : (t.setsWon / t.setsLost);
+            t.ptRatio = t.rallyPointsLost === 0 ? (t.rallyPointsWon > 0 ? 999 : 0) : (t.rallyPointsWon / t.rallyPointsLost);
+            return t;
+        }).sort((a,b) => {
+            if (b.wins !== a.wins) return b.wins - a.wins;
+            if (b.points !== a.points) return b.points - a.points;
+            if (b.setRatio !== a.setRatio) return b.setRatio - a.setRatio;
+            return b.ptRatio - a.ptRatio;
+        });
+    }
+
+    function updateFixtureTime(idx, val) {
+        if(viewingArchive) return;
+        league.fixtures[idx].scheduledTime = val;
+        save();
+    }
+
+    function showDash() {
+        hideAll(); document.getElementById('scr-dash').classList.remove('hidden');
+        document.getElementById('display-tourney-name').innerText = league.name + (viewingArchive ? " (ARCHIVED)" : "");
+        
+        document.getElementById('archive-banner').style.display = viewingArchive ? 'flex' : 'none';
+        document.getElementById('dash-action-buttons').style.display = viewingArchive ? 'none' : 'block';
+        document.getElementById('btn-edit-teams').style.display = viewingArchive ? 'none' : 'inline-block';
+        document.getElementById('dash-danger-buttons').style.display = viewingArchive ? 'none' : 'flex';
+        document.getElementById('hdr-action').style.display = viewingArchive ? 'none' : 'table-cell';
+        document.getElementById('btn-dash-home').innerText = viewingArchive ? "← Exit Archive" : "← Back Home";
+
+        let poolCounter = 1;
+        document.getElementById('fixture-body').innerHTML = league.fixtures.map((f, i) => {
+            let label = '';
+            if (f.type === 'Practice') { label = 'Practice Match'; } 
+            else if (f.type === 'Pool Play') { label = `Match ${poolCounter++}`; } 
+            else { label = f.type; }
+            
+            let timeUI = f.scheduledTime ? `<span style="color:#555; font-size:0.9em;">${f.scheduledTime}</span>` : '';
+            if (f.done) timeUI = '<span style="color:#28a745;">Played ✅</span>';
+
+            let isLiveMatch = (match.isLive && match.currentFixture === i);
+            let rowStyle = isLiveMatch ? 'style="background-color: #e8f5e9; border-left: 4px solid #28a745;"' : '';
+            
+            let actionBtn = '';
+            if (!viewingArchive) {
+                if (isLiveMatch) {
+                    actionBtn = `<button class="btn btn-green" style="width:auto; padding:8px 15px; margin:0; animation: pulse 1.5s infinite;" onclick="resumeMatch()">Resume</button>`;
+                } else if (!f.done) {
+                    actionBtn = `<button class="btn btn-blue" style="width:auto; padding:8px 15px; margin:0;" onclick="startFixture(${i})" ${match.isLive ? 'disabled' : ''}>Play</button>`;
+                }
+            }
+
+            let actionCol = viewingArchive ? '' : `<td>${actionBtn}</td>`;
+
+            return `<tr ${rowStyle}>
+                <td><strong>${label}</strong>:<br>${league.teams[f.t1].name} <span style="color:#666; font-size:0.8em;">vs</span> ${league.teams[f.t2].name}</td>
+                <td>${timeUI}</td>
+                ${actionCol}
+            </tr>`;
+        }).join('');
+        
+        let sorted = getSortedTeams();
+        document.getElementById('team-body').innerHTML = sorted.map(t => `<tr><td>${t.name}</td><td>${t.wins}</td><td>${t.points}</td><td>${t.setRatio === 999 ? 'MAX' : t.setRatio.toFixed(2)}</td><td>${t.ptRatio === 999 ? 'MAX' : t.ptRatio.toFixed(2)}</td></tr>`).join('');
+        
+        let p = []; league.teams.forEach(t => t.roster.forEach(pl => p.push({n:pl.name, t:t.name, ...pl})));
+        p.sort((a,b) => b.won - a.won);
+        document.getElementById('leader-body').innerHTML = p.slice(0,15).map(x => `<tr><td>${x.n}</td><td>${x.t}</td><td class="win-pt">${x.won}</td><td>${x.kills}</td><td>${x.blocks}</td><td>${x.aces}</td><td class="lose-pt">${x.errors}</td></tr>`).join('');
+        
+        document.getElementById('log-body').innerHTML = league.log.length ? league.log.map(l => `<tr><td>${l.m}</td><td>${l.s}</td><td class="win-pt">${l.w}</td><td>${l.t}</td></tr>`).join('') : '<tr><td colspan="4">No match history.</td></tr>';
+
+        if (!viewingArchive) {
+            let allPoolsDone = league.fixtures.filter(f => f.type === 'Pool Play').every(f => f.done);
+            let btnPlayoffs = document.getElementById('btn-generate-playoffs');
+            if (allPoolsDone && league.playoffStage === 0 && league.teams.length >= 2 && league.fixtures.length > 0) {
+                btnPlayoffs.classList.remove('hidden');
+            } else {
+                btnPlayoffs.classList.add('hidden');
+            }
+
+            let allFixturesDone = league.fixtures.length > 0 && league.fixtures.every(f => f.done);
+            let btnArchive = document.getElementById('btn-archive-season');
+            if (btnArchive) {
+                if (allFixturesDone) {
+                    btnArchive.disabled = false;
+                    btnArchive.style.opacity = '1';
+                    btnArchive.innerText = '📂 Archive & End Season';
+                } else {
+                    btnArchive.disabled = true;
+                    btnArchive.style.opacity = '0.5';
+                    btnArchive.innerText = '🔒 Archive Season (Finish All Matches)';
+                }
+            }
+        }
+    }
+
+    function generatePlayoffs() {
+        let sorted = getSortedTeams();
+        if (league.teams.length >= 4) {
+            league.fixtures.push({t1: sorted[0].originalIndex, t2: sorted[3].originalIndex, done: false, type: 'Semi-Final 1', scheduledTime: ''});
+            league.fixtures.push({t1: sorted[1].originalIndex, t2: sorted[2].originalIndex, done: false, type: 'Semi-Final 2', scheduledTime: ''});
+            league.playoffStage = 1;
+        } else if (league.teams.length >= 2) {
+            league.fixtures.push({t1: sorted[0].originalIndex, t2: sorted[1].originalIndex, done: false, type: 'Championship', scheduledTime: ''});
+            league.playoffStage = 2;
+        }
+        applyAutoSchedule();
+        save(); showDash();
+    }
+
+    function checkPlayoffTriggers() {
+        if (league.playoffStage === 1) {
+            let sf1 = league.fixtures.find(f => f.type === 'Semi-Final 1');
+            let sf2 = league.fixtures.find(f => f.type === 'Semi-Final 2');
+            if (sf1 && sf1.done && sf2 && sf2.done) {
+                let finalExists = league.fixtures.some(f => f.type === 'Championship');
+                if(!finalExists) {
+                    league.fixtures.push({t1: sf1.winnerIdx, t2: sf2.winnerIdx, done: false, type: 'Championship', scheduledTime: ''});
+                    league.playoffStage = 2;
+                    applyAutoSchedule();
+                }
+            }
+        }
+    }
+
+    function startFixture(idx) { match.currentFixture = idx; prepMatch(league.fixtures[idx].t1, league.fixtures[idx].t2); }
+    
+    function cancelMatchSetup() {
+        if (match.isLive) {
+            showDash(); 
+        } else {
+            match.currentFixture = null;
+            showDash();
+        }
+    }
+
+    function startCustomMatch() {
+        match.currentFixture = null;
+        prepMatch(0, 1);
+    }
+
+    function prepMatch(t1=0, t2=1) {
+        hideAll(); document.getElementById('scr-setup').classList.remove('hidden');
+        document.getElementById('sel-t1').innerHTML = league.teams.map((t,i)=>`<option value="${i}">${t.name}</option>`).join('');
+        document.getElementById('sel-t2').innerHTML = league.teams.map((t,i)=>`<option value="${i}">${t.name}</option>`).join('');
+        document.getElementById('sel-t1').value = t1; document.getElementById('sel-t2').value = t2;
+        
+        let isOfficial = match.currentFixture !== null;
+        document.getElementById('sel-t1').disabled = isOfficial;
+        document.getElementById('sel-t2').disabled = isOfficial;
+
+        if (isOfficial) {
+            let f = league.fixtures[match.currentFixture];
+            match.isScrimmage = (f.type === 'Practice');
+        } else {
+            match.isScrimmage = true; 
+        }
+
+        syncToss(); 
+        
+        let sn = match.sets.t1 + match.sets.t2 + 1;
+        document.getElementById('toss-box').style.display = (sn === 1 || (sn === match.maxSets && match.maxSets > 1)) ? "block" : "none";
+        
+        document.getElementById('match-config-row').style.display = (sn === 1) ? "flex" : "none";
+        
+        let btnStart = document.getElementById('btn-start-match');
+        let btnCancel = document.getElementById('btn-cancel-match');
+        
+        if (sn === 1) {
+            btnStart.innerText = "LIT THE COURT";
+            btnCancel.innerText = "Cancel / Back to Schedule";
+        } else {
+            btnStart.innerText = "PROCEED TO NEXT SET";
+            btnCancel.innerText = "⏸️ Pause to Dashboard";
+        }
+        
+        buildLineupUI('t1', true); buildLineupUI('t2', true); updateColors();
+    }
+
+    function syncToss() {
+        let n1 = league.teams[document.getElementById('sel-t1').value].name, n2 = league.teams[document.getElementById('sel-t2').value].name;
+        document.getElementById('coin-t1').innerText = n1; document.getElementById('coin-t2').innerText = n2;
+        document.getElementById('toss-winner').innerHTML = `<option value="t1">${n1}</option><option value="t2">${n2}</option>`;
+        document.getElementById('rad-lbl-t1').innerText = n1; document.getElementById('rad-lbl-t2').innerText = n2;
+        handleTossChange();
+    }
+
+    function buildLineupUI(side, preserveState = false) {
+        let t = league.teams[document.getElementById('sel-'+side).value];
+        let html = ''; 
+        for(let i=0; i<6; i++) {
+            let opts = t.roster.map((p, idx) => {
+                let isSelected = false;
+                if (preserveState && match.startingCourt && match.startingCourt[side] && match.startingCourt[side].length > 0) {
+                    isSelected = (match.startingCourt[side][i] === p.name);
+                } else {
+                    isSelected = (idx === i); 
+                }
+                return `<option value="${p.name}" ${isSelected ? 'selected' : ''}>${p.name}</option>`;
+            }).join('');
+            html += `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;"><span style="font-weight:bold; font-size:0.85em; width:40px;">P${i+1}:</span><select class="${side}-lup" style="margin:0;">${opts}</select></div>`;
+        }
+        document.getElementById('lineup-'+side).innerHTML = html;
+        
+        let libOpts = t.roster.map(p => `<option value="${p.name}" ${preserveState && match.libs && match.libs[side] === p.name ? 'selected' : ''}>${p.name}</option>`).join('');
+        document.getElementById('lib-'+side).innerHTML = `<option value="">None</option>${libOpts}`;
+        
+        if(side==='t2') syncToss();
+    }
+
+    function flipDigitalCoin() {
+        if(isFlipping) return; isFlipping = true;
+        const res = Math.random() < 0.5 ? 't1' : 't2';
+        document.getElementById('digital-coin').style.transform = `rotateY(${1800 + (res==='t1'?0:180)}deg)`;
+        setTimeout(() => { 
+            document.getElementById('toss-winner').value = res; handleTossChange(); 
+            isFlipping = false; document.getElementById('digital-coin').style.transition = 'none'; 
+            document.getElementById('digital-coin').style.transform = `rotateY(${res==='t1'?0:180}deg)`; 
+            setTimeout(() => document.getElementById('digital-coin').style.transition = 'transform 2s cubic-bezier(0.175, 0.885, 0.32, 1.275)', 50); 
+        }, 2000);
+    }
+
+    function handleTossChange() {
+        let w = document.getElementById('toss-winner').value, c = document.getElementById('toss-choice').value;
+        const loser = (w === 't1') ? 't2' : 't1';
+        if(c === 'court') { 
+            document.getElementById('srv-note').innerHTML = "Winner chose Side.<br><span style='color:#d93025;'>Loser picks Action. Select server below.</span>"; 
+        } else { 
+            document.getElementById(`rad-${c==='serve'?w:loser}`).checked = true; 
+            document.getElementById('srv-note').innerText = `(${league.teams[document.getElementById('sel-'+w).value].name} won toss)`; 
+        }
+    }
+
+    function updateColors() {
+        match.colors.t1 = document.getElementById('col-t1').value; match.colors.t2 = document.getElementById('col-t2').value;
+        document.getElementById('setup-card-t1').style.borderTopColor = match.colors.t1; document.getElementById('setup-card-t2').style.borderTopColor = match.colors.t2;
+    }
+
+    function launchMatch() {
+        const t1S = Array.from(document.querySelectorAll('.t1-lup')).map(s => s.value);
+        const t2S = Array.from(document.querySelectorAll('.t2-lup')).map(s => s.value);
+        if(new Set(t1S).size !== 6 || new Set(t2S).size !== 6) return alert("Lineup Error: Ensure 6 unique players are selected per side.");
+        
+        match.t1Idx = document.getElementById('sel-t1').value; match.t2Idx = document.getElementById('sel-t2').value;
+        
+        let sn = match.sets.t1 + match.sets.t2 + 1;
+        if (sn === 1) {
+            match.maxSets = parseInt(document.getElementById('match-len').value);
+            match.decidingScore = parseInt(document.getElementById('deciding-len').value);
+            match.accumulatedTime = 0;
+            match.isSwapped = false; 
+        }
+        
+        let srv = document.querySelector('input[name="srv"]:checked').value;
+        if (!match.isLive && sn === 1) match.firstServers = [];
+        match.firstServers.push(srv);
+        
+        match.startingCourt = { t1: [...t1S], t2: [...t2S] }; 
+        match.court.t1 = t1S.map(n => ({name: n})); match.court.t2 = t2S.map(n => ({name: n}));
+        match.libs = {t1: document.getElementById('lib-t1').value, t2: document.getElementById('lib-t2').value};
+        match.score = {t1:0, t2:0}; match.timeouts = {t1:0, t2:0}; match.subs = {t1:0, t2:0}; 
+        match.winner = srv; match.swappedAt8 = false; match.isLive = true; 
+        match.startTime = Date.now();
+        libAlerted = {t1: false, t2: false};
+        
+        requestWakeLock(); resumeMatch();
+    }
+
+    function forfeitMatch() {
+        document.getElementById('forfeit-select').innerHTML = `
+            <option value="1">${league.teams[match.t1Idx].name}</option>
+            <option value="2">${league.teams[match.t2Idx].name}</option>
+        `;
+        document.getElementById('modal-forfeit').style.display = 'flex';
+    }
+
+    function confirmForfeit() {
+        let fTeam = document.getElementById('forfeit-select').value;
+        document.getElementById('modal-forfeit').style.display = 'none';
+
+        clearInterval(timerInt);
+        let win = fTeam === '1' ? 't2' : 't1';
+        let lose = fTeam === '1' ? 't1' : 't2';
+        
+        match.sets[win] = Math.ceil(match.maxSets / 2);
+        
+        if(!match.isScrimmage) {
+            league.teams[match[win+'Idx']].wins++;
+            league.teams[match[win+'Idx']].points += 3; 
+            
+            if(match.currentFixture !== null) {
+                league.fixtures[match.currentFixture].done = true;
+                league.fixtures[match.currentFixture].winnerIdx = match[win+'Idx'];
+            }
+            league.log.push({m:`${league.teams[match.t1Idx].name} vs ${league.teams[match.t2Idx].name}`, s:`FORFEIT`, w:league.teams[match[win+'Idx']].name, t:"N/A"});
+        } else if(match.currentFixture !== null) {
+            league.fixtures[match.currentFixture].done = true;
+        }
+        
+        checkPlayoffTriggers();
+        match.isLive = false; match.sets = {t1:0, t2:0}; localStorage.removeItem(MATCH_KEY); save(); 
+        alert("Match Forfeited successfully. Official points awarded to the winner."); showDash();
+    }
+
+    function pauseToDash() {
+        match.accumulatedTime = (match.accumulatedTime || 0) + Math.floor((Date.now() - match.startTime) / 1000);
+        clearInterval(timerInt);
+        saveState();
+        showDash();
+    }
+
+    function resumeMatch() {
+        hideAll(); document.getElementById('scr-match').classList.remove('hidden');
+        document.getElementById('m-name-t1').innerText = league.teams[match.t1Idx].name; document.getElementById('m-name-t1').style.backgroundColor = match.colors.t1;
+        document.getElementById('m-name-t2').innerText = league.teams[match.t2Idx].name; document.getElementById('m-name-t2').style.backgroundColor = match.colors.t2;
+        
+        document.getElementById('main-scoreboard').classList.toggle('swapped', !!match.isSwapped);
+
+        match.startTime = Date.now(); 
+        render(); 
+        
+        if(timerInt) clearInterval(timerInt);
+        timerInt = setInterval(() => { 
+            let sec = (match.accumulatedTime || 0) + Math.floor((Date.now()-match.startTime)/1000); 
+            document.getElementById('set-timer').innerText = Math.floor(sec/60).toString().padStart(2,'0')+":"+(sec%60).toString().padStart(2,'0'); 
+        }, 1000);
+    }
+
+    function swapSides() { 
+        match.isSwapped = !match.isSwapped;
+        document.getElementById('main-scoreboard').classList.toggle('swapped', match.isSwapped);
+        save();
+    }
+
+    function useTimeout(s) {
+        if(match.timeouts[s] < 2) {
+            saveState(); match.timeouts[s]++; render();
+            document.getElementById('to-team-name').innerText = league.teams[match[s+'Idx']].name;
+            document.getElementById('to-timer-display').innerText = "30";
+            document.getElementById('modal-timeout').style.display='flex';
+            let tl = 30; clearInterval(timeoutInt);
+            timeoutInt = setInterval(() => { tl--; document.getElementById('to-timer-display').innerText = tl; if(tl<=0) endTimeout(); }, 1000);
+        } else alert("Timeout limit (2 per set) reached!");
+    }
+    function endTimeout() { clearInterval(timeoutInt); document.getElementById('modal-timeout').style.display='none'; }
+
+    function openPtModal(s) { activeSide = s; document.getElementById('modal-pt-type').style.display='flex'; }
+    function goBackToPtType() { document.getElementById('modal-pt-player').style.display = 'none'; document.getElementById('modal-pt-type').style.display = 'flex'; }
+    
+    function setPtAction(act) {
+        activeAction = act; document.getElementById('modal-pt-type').style.display='none';
+        if(act==='Ace') { 
+            let sName = match.court[activeSide][0].name; 
+            if(sName === match.libs[activeSide]) {
+                alert("Rule Violation: Libero cannot serve for an Ace!");
+                document.getElementById('modal-pt-type').style.display='flex';
+                return;
+            }
+            finalizePoint(sName, activeSide); 
+        } else { 
+            let targetTeam = act==='Error' ? (activeSide==='t1'?'t2':'t1') : activeSide; 
+            document.getElementById('pt-player-list').innerHTML = match.court[targetTeam].map(p=>`<button class="player-btn" onclick="finalizePoint('${p.name}','${targetTeam}')">${p.name}</button>`).join(''); 
+            document.getElementById('modal-pt-player').style.display = 'flex'; 
+        }
+    }
+
+    function finalizePoint(pName, pSide) {
+        const pIdx = match.court[pSide].findIndex(p => p.name === pName);
+        
+        if(activeAction === 'Block' && (pIdx === 0 || pIdx === 4 || pIdx === 5)) return alert("Rule Violation: Back-row player cannot score via Block!");
+        if(pName === match.libs[pSide] && (activeAction === 'Kill' || activeAction === 'Block')) return alert("Rule Violation: Libero cannot legally score via Kill or Block!");
+        
+        saveState();
+        if(!match.isScrimmage) {
+            let t = league.teams[match[pSide==='t1'?'t1Idx':'t2Idx']], p = t.roster.find(x => x.name === pName);
+            if(activeAction==='Error') p.errors++; 
+            else { p.won++; if(activeAction==='Kill') p.kills++; if(activeAction==='Block') p.blocks++; if(activeAction==='Ace') p.aces++; }
+        }
+        
+        if(match.winner && match.winner !== activeSide) match.court[activeSide].push(match.court[activeSide].shift());
+        
+        match.score[activeSide]++; match.winner = activeSide; 
+        document.getElementById('modal-pt-player').style.display = 'none'; 
+        render(); checkWin();
+    }
+
+    function render() {
+        ['t1','t2'].forEach(s => {
+            document.getElementById('m-score-'+s).innerText = match.score[s];
+            document.getElementById('m-sets-'+s).innerText = `Sets: ${match.sets[s]}`;
+            document.getElementById('m-subs-'+s).innerText = `Subs: ${match.subs[s]}/6`;
+            document.getElementById('m-to-'+s).innerText = `T.O: ${match.timeouts[s]}/2`;
+            
+            document.getElementById('m-disp-'+s).innerHTML = match.court[s].map((p,i) => `
+                <div class="rot-item">
+                    <span class="${p.name===match.libs[s]?'libero-text':''}">${(i===0 && match.winner===s)?'🏐':''} ${p.name}</span> 
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span class="badge ${i>=1 && i<=3 ?'fr':'br'}">${posNames[i]}</span>
+                        <button class="btn" style="width:auto; margin:0; padding:6px 12px; font-size:0.7em; background:#f8f9fa; border:1px solid #ccc; color:#333;" onclick="openSub('${s}',${i})">SUB</button>
+                    </div>
+                </div>`).join('');
+                
+            if(match.winner===s && match.court[s][0].name===match.libs[s] && !libAlerted[s]) {
+                document.getElementById('lib-alert-txt').innerText = `${match.libs[s]} is in Pos 1 (Serving). Please sub them out.`;
+                document.getElementById('lib-alert-modal').style.display = 'flex';
+                libAlerted[s] = true;
+            } else if (match.winner !== s || match.court[s][0].name !== match.libs[s]) {
+                libAlerted[s] = false;
+            }
+        });
+        save();
+    }
+
+    function openSub(side, idx) { 
+        activeSide = side; activeSubIdx = idx; 
+        let t = league.teams[match[side+'Idx']], onCourt = match.court[side].map(p => p.name);
+        let bench = t.roster.filter(p => !onCourt.includes(p.name)); 
+        document.getElementById('sub-select').innerHTML = bench.map(p => `<option value="${p.name}">${p.name}</option>`).join(''); 
+        document.getElementById('modal-sub').style.display = 'flex'; 
+    }
+    
+    function confirmSub() { 
+        let pName = document.getElementById('sub-select').value; 
+        if(!pName) return;
+        if(pName !== match.libs[activeSide] && match.court[activeSide][activeSubIdx].name !== match.libs[activeSide]) {
+            if(match.subs[activeSide]>=6) return alert("Substitution Limit (6 per set) reached!"); 
+            match.subs[activeSide]++;
+        }
+        saveState();
+        match.court[activeSide][activeSubIdx] = {name: pName}; 
+        document.getElementById('modal-sub').style.display='none'; render(); 
+    }
+
+    function checkWin() {
+        let s1 = match.score.t1, s2 = match.score.t2, sn = match.sets.t1 + match.sets.t2 + 1;
+        let target = (match.maxSets === 1 || sn === match.maxSets) ? match.decidingScore : 25;
+        let swap = (target === 15) ? 8 : 13;
+        
+        if(sn === match.maxSets && match.maxSets > 1 && (s1===swap || s2===swap) && !match.swappedAt8) { 
+            alert(`Point ${swap} Reached! AUTOMATIC COURT SWAP.`); 
+            match.swappedAt8=true;
+            swapSides(); 
+        }
+        
+        if((s1>=target || s2>=target) && Math.abs(s1-s2)>=2) {
+            let win = s1 > s2 ? 't1' : 't2'; 
+            let lose = s1 > s2 ? 't2' : 't1';
+            match.sets[win]++;
+            
+            if(!match.isScrimmage) { 
+                league.teams[match[win+'Idx']].setsWon++; 
+                league.teams[match[lose+'Idx']].setsLost++;
+                
+                league.teams[match.t1Idx].rallyPointsWon += s1;
+                league.teams[match.t1Idx].rallyPointsLost += s2;
+                league.teams[match.t2Idx].rallyPointsWon += s2;
+                league.teams[match.t2Idx].rallyPointsLost += s1;
+
+                league.log.push({m:`${league.teams[match.t1Idx].name} vs ${league.teams[match.t2Idx].name}`, s:`${s1}-${s2}`, w:league.teams[match[win+'Idx']].name, t:document.getElementById('set-timer').innerText}); 
+            }
+            if(match.sets[win] >= Math.ceil(match.maxSets/2)) finishMatch(win); 
+            else nextSet();
+        }
+    }
+
+    function finishMatch(win) { 
+        clearInterval(timerInt); 
+        if(!match.isScrimmage) { 
+            let lose = win === 't1' ? 't2' : 't1';
+            league.teams[match[win+'Idx']].wins++; 
+            
+            let max = match.maxSets;
+            let lSets = match.sets[lose];
+
+            if (max === 5) {
+                if (lSets === 2) { league.teams[match[win+'Idx']].points += 2; league.teams[match[lose+'Idx']].points += 1; }
+                else { league.teams[match[win+'Idx']].points += 3; }
+            } else if (max === 3) {
+                if (lSets === 1) { league.teams[match[win+'Idx']].points += 2; league.teams[match[lose+'Idx']].points += 1; }
+                else { league.teams[match[win+'Idx']].points += 3; }
+            } else {
+                league.teams[match[win+'Idx']].points += 3; 
+            }
+            
+            if(match.currentFixture !== null) {
+                league.fixtures[match.currentFixture].done = true; 
+                league.fixtures[match.currentFixture].winnerIdx = match[win+'Idx']; 
+            }
+            checkPlayoffTriggers();
+        } else if(match.currentFixture !== null) {
+            league.fixtures[match.currentFixture].done = true;
+        }
+        match.isLive = false; match.sets = {t1:0, t2:0}; localStorage.removeItem(MATCH_KEY); save(); 
+        alert("Match Over!"); showDash(); 
+    }
+    
+    function nextSet() { 
+        alert("Set Over! Please confirm lineups for the next set."); 
+        match.score = {t1:0, t2:0}; match.subs = {t1:0, t2:0}; match.timeouts = {t1:0, t2:0}; match.winner = null; 
+        
+        match.isSwapped = !match.isSwapped;
+
+        prepMatch(match.t1Idx, match.t2Idx); 
+        const nextIdx = match.sets.t1 + match.sets.t2; 
+        const prevS = match.firstServers[nextIdx - 1]; 
+        if (nextIdx + 1 < match.maxSets) { 
+            document.getElementById(`rad-${prevS==='t1'?'t2':'t1'}`).checked = true; 
+            document.getElementById('srv-note').innerText = "(Server Auto-Alternated)";
+        } else {
+            document.getElementById('srv-note').innerText = "Deciding Set: Conduct Coin Toss";
+        }
+    }
+
+    function exportCSV() { 
+        let csv = "TEAM STANDINGS\nTeam,Wins,Points,SetsWon,SetsLost,PtsWon,PtsLost\n" + league.teams.map(t=>`${t.name},${t.wins},${t.points},${t.setsWon},${t.setsLost},${t.rallyPointsWon},${t.rallyPointsLost}`).join("\n") + "\n\nPLAYER ANALYTICS\nPlayer,Team,Pts,Kills,Blocks,Aces,Errors\n" + league.teams.map(t=>t.roster.map(p=>`${p.name},${t.name},${p.won},${p.kills},${p.blocks},${p.aces},${p.errors}`).join("\n")).join("\n"); 
+        let b = new Blob([csv],{type:'text/csv'}), a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'Tournament_Stats.csv'; a.click(); 
+    }
+    
+    function resetStandings() { 
+        if(viewingArchive) return;
+        if(confirm("Clear all match results and standings?")) { 
+            league.log=[]; 
+            league.playoffStage = 0;
+            league.teams.forEach(t=>{ 
+                t.wins=0; t.points=0; t.setsWon=0; t.setsLost=0; t.rallyPointsWon=0; t.rallyPointsLost=0;
+                t.roster.forEach(p=>{ p.won=0; p.kills=0; p.blocks=0; p.aces=0; p.errors=0; }); 
+            }); 
+            if(league.fixtures) {
+                league.fixtures = league.fixtures.filter(f => f.type === 'Pool Play' || f.type === 'Practice');
+                league.fixtures.forEach(f=>f.done=false); 
+            }
+            save(); showDash(); 
+        } 
+    }
+    
+    function abortMatch() { if(confirm("Abort match? This will completely erase the current match data.")) { clearInterval(timerInt); match.isLive = false; showDash(); } }
+    function saveState() { let h = match.history; match.history=[]; let s = {m:JSON.stringify(match), l:JSON.stringify(league)}; match.history=h; match.history.push(s); }
+    function undo() { 
+        if(match.history.length) { 
+            let s = match.history.pop(); match = JSON.parse(s.m); league = JSON.parse(s.l); 
+            document.getElementById('main-scoreboard').classList.toggle('swapped', !!match.isSwapped);
+            render(); 
+        } else alert("No actions to undo."); 
+    }
+    function save() { if(!viewingArchive) { localStorage.setItem(DB_KEY, JSON.stringify(league)); if(match.isLive) localStorage.setItem(MATCH_KEY, JSON.stringify(match)); } }
+    function wipeTournament() { if(confirm("WARNING: WIPE ALL DATA FOREVER?")) { localStorage.clear(); location.reload(); } }
+</script>
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+                .then(registration => console.log('ServiceWorker registered successfully.'))
+                .catch(err => console.log('ServiceWorker registration failed: ', err));
+        });
+    }
+</script>
+</body>
+</html>
