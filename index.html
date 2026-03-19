@@ -359,14 +359,25 @@
         <button class="btn" style="background:#ffc107; color:#333; margin-top:20px;" onclick="scrapPracticeMatches()">🗑️ Scrap Unplayed Practice Matches</button>
         
         <div style="display:flex; gap:10px; margin-top:15px;">
-            <button class="btn btn-green" style="flex:2;" onclick="saveTourneySettings()">Save Changes</button>
-            <button class="btn" style="background:#6c757d; color:white; flex:1;" onclick="document.getElementById('modal-tourney-settings').style.display='none'">Cancel</button>
+            <button class="btn btn-green" style="flex:2; margin:0;" onclick="saveTourneySettings()">Save Changes</button>
+            <button class="btn" style="background:#6c757d; color:white; flex:1; margin:0;" onclick="document.getElementById('modal-tourney-settings').style.display='none'">Cancel</button>
+        </div>
+    </div></div>
+
+    <div id="modal-edit-time" class="modal"><div class="modal-content">
+        <h3 style="margin-top:0; color:#1a73e8;">Reschedule Match</h3>
+        <p style="font-size: 0.85em; color: #555;">Select a new date and time for this match.</p>
+        <input type="datetime-local" id="edit-time-input">
+        <input type="hidden" id="edit-time-idx">
+        <div style="display:flex; gap:10px; margin-top:15px;">
+            <button class="btn btn-green" style="flex:2; margin:0;" onclick="saveMatchTime()">Save Time</button>
+            <button class="btn" style="background:#6c757d; color:white; flex:1; margin:0;" onclick="document.getElementById('modal-edit-time').style.display='none'">Cancel</button>
         </div>
     </div></div>
 
 <script>
-    const DB_KEY = 'v_tourney_final_126'; 
-    const MATCH_KEY = 'v_active_match_t126';
+    const DB_KEY = 'v_tourney_final_127'; 
+    const MATCH_KEY = 'v_active_match_t127';
     const ARCHIVE_KEY = 'cmp_archives_v1';
     
     let league = JSON.parse(localStorage.getItem(DB_KEY)) || null;
@@ -376,25 +387,17 @@
     let libAlerted = {t1: false, t2: false};
     let viewingArchive = false;
 
-    // --- GLOBAL HARDWARE NAVIGATION CONTROLLER ---
     function pushHistoryTrap() {
         history.pushState({ trapped: true }, "");
     }
 
     window.addEventListener('popstate', function(e) {
-        // If we are completely closed out on the Home Screen, let the app close naturally.
-        if (!document.getElementById('scr-home').classList.contains('hidden')) {
-            return; 
-        }
+        if (!document.getElementById('scr-home').classList.contains('hidden')) return; 
 
-        // Otherwise, immediately drop another trap so the app doesn't close
         pushHistoryTrap(); 
 
-        // Route the back button intelligently based on what screen is visible
         if (!document.getElementById('scr-match').classList.contains('hidden')) {
-            if(confirm("⚠️ MATCH IN PROGRESS!\n\nAre you sure you want to leave? This will pause the timer.")) {
-                pauseToDash();
-            }
+            if(confirm("⚠️ MATCH IN PROGRESS!\n\nAre you sure you want to leave? This will pause the timer.")) pauseToDash();
         } else if (!document.getElementById('scr-setup').classList.contains('hidden')) {
             cancelMatchSetup();
         } else if (!document.getElementById('scr-roster').classList.contains('hidden')) {
@@ -437,7 +440,7 @@
     window.onload = () => {
         document.getElementById('daily-tip').innerText = tips[Math.floor(Math.random() * tips.length)];
         
-        pushHistoryTrap(); // Arm the global back button trap
+        pushHistoryTrap(); 
 
         if(league) { 
             document.getElementById('btn-home-dash').classList.remove('hidden'); 
@@ -591,15 +594,25 @@
         }
     }
 
+    // NEW: NATIVE CALENDAR EDITOR INTEGRATION
     function editMatchTime(idx) {
         if(viewingArchive) return;
         if(!checkAdminPin()) return;
-        let current = league.fixtures[idx].scheduledTime || "";
-        let newTime = prompt("Reschedule Match:\nEnter new date/time (e.g., Sat 4:00 PM):", current);
-        if(newTime !== null) {
-            league.fixtures[idx].scheduledTime = newTime.trim();
+        document.getElementById('edit-time-idx').value = idx;
+        document.getElementById('edit-time-input').value = ""; 
+        document.getElementById('modal-edit-time').style.display = 'flex';
+    }
+
+    function saveMatchTime() {
+        let idx = document.getElementById('edit-time-idx').value;
+        let rawVal = document.getElementById('edit-time-input').value;
+        if (rawVal) {
+            let d = new Date(rawVal);
+            let formatted = d.toLocaleDateString('en-US', {weekday: 'short', month:'short', day:'numeric'}) + " - " + d.toLocaleTimeString('en-US', {hour: 'numeric', minute:'2-digit'});
+            league.fixtures[idx].scheduledTime = formatted;
             save(); showDash();
         }
+        document.getElementById('modal-edit-time').style.display = 'none';
     }
 
     function editTeamsFromDash() { 
@@ -607,7 +620,6 @@
         entryIdx = 0; startRoster(); 
     }
 
-    // ROSTER UI BUTTON FIX
     function startRoster() {
         hideAll(); document.getElementById('scr-roster').classList.remove('hidden');
         document.getElementById('roster-title').innerText = `Roster Setup ${entryIdx + 1}/${league.teams.length}`;
@@ -618,13 +630,13 @@
         let isMidTourney = league.fixtures && league.fixtures.length > 0;
         
         let btnPrev = document.getElementById('btn-prev-team');
-        btnPrev.disabled = false; // Always clickable now
+        btnPrev.disabled = false; 
         if (entryIdx === 0) {
             btnPrev.innerText = isMidTourney ? "Cancel Edit" : "Abort Setup";
-            btnPrev.style.background = "#dc3545"; // Red escape hatch
+            btnPrev.style.background = "#dc3545"; 
         } else {
             btnPrev.innerText = "← Back";
-            btnPrev.style.background = "#6c757d"; // Standard grey
+            btnPrev.style.background = "#6c757d"; 
         }
         
         document.getElementById('btn-save-team').innerText = entryIdx === league.teams.length-1 ? (isMidTourney ? "Save & Return to Dash" : "Finalize Registry") : "Next Team →";
@@ -644,7 +656,6 @@
 
     function jumpToTeam(idx) { saveToTemp(); entryIdx = parseInt(idx); startRoster(); }
 
-    // ROSTER LOGIC ABORT FIX
     function prevTeam() { 
         if(entryIdx > 0) { 
             saveToTemp(); 
@@ -656,7 +667,7 @@
                 showDash(); 
             } else {
                 if(confirm("Abort tournament setup? All entered data will be lost.")) {
-                    league = JSON.parse(localStorage.getItem(DB_KEY)) || null; // Safely restore state
+                    league = JSON.parse(localStorage.getItem(DB_KEY)) || null; 
                     goHome();
                 }
             }
@@ -1157,6 +1168,8 @@
     function resumeMatch() {
         match.isPaused = false; 
         localStorage.setItem('cmp_last_screen', 'match');
+        
+        history.pushState({ matchActive: true }, ""); 
 
         hideAll(); document.getElementById('scr-match').classList.remove('hidden');
         document.getElementById('m-name-t1').innerText = league.teams[match.t1Idx].name; document.getElementById('m-name-t1').style.backgroundColor = match.colors.t1;
