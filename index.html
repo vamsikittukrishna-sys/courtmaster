@@ -292,9 +292,7 @@
 
     <div id="modal-pt-type" class="modal"><div class="modal-content">
         <h3 style="margin-top:0;">Rally Outcome</h3>
-        
         <div id="dynamic-pt-buttons" style="display: flex; flex-direction: column; gap: 5px;"></div>
-        
         <button class="btn" style="background:none; color:#1a73e8; margin-top:10px;" onclick="document.getElementById('modal-pt-type').style.display='none'">Cancel</button>
     </div></div>
     
@@ -341,8 +339,8 @@
     </div></div>
 
 <script>
-    const DB_KEY = 'v_tourney_final_119'; 
-    const MATCH_KEY = 'v_active_match_t119';
+    const DB_KEY = 'v_tourney_final_120'; 
+    const MATCH_KEY = 'v_active_match_t120';
     const ARCHIVE_KEY = 'cmp_archives_v1';
     
     let league = JSON.parse(localStorage.getItem(DB_KEY)) || null;
@@ -351,6 +349,26 @@
     let entryIdx = 0, isFlipping = false, timerInt, timeoutInt, activeSide, activeAction, activeSubIdx, wakeLock = null;
     let libAlerted = {t1: false, t2: false};
     let viewingArchive = false;
+
+    // --- HARDWARE BACK BUTTON PREVENTER & REFRESH WARN ---
+    window.addEventListener('beforeunload', function(e) {
+        if (match && match.isLive && !match.isPaused) {
+            e.preventDefault();
+            e.returnValue = ''; // Throws a browser confirmation prompt on refresh/close
+        }
+    });
+
+    window.addEventListener('popstate', function(e) {
+        // If they swipe back while on the match screen
+        if (match && match.isLive && !match.isPaused && !document.getElementById('scr-match').classList.contains('hidden')) {
+            if(confirm("⚠️ MATCH IN PROGRESS! Are you sure you want to leave? This will pause the timer.")) {
+                pauseToDash();
+            } else {
+                // They clicked cancel, re-push the lock
+                history.pushState({ inMatch: true }, "");
+            }
+        }
+    });
 
     document.addEventListener("visibilitychange", function() {
         if (document.visibilityState === 'hidden' && match && match.isLive && !match.isPaused) {
@@ -368,50 +386,7 @@
         "Rule Check: Back-row players cannot participate in a block at the net.",
         "A set must be won with a minimum 2-point lead. There is no hard point cap.",
         "Libero Rule: They cannot legally score via a Spike, Block, or Service Ace.",
-        "Earth Court Strategy: Dirt surfaces create lower bounces; stay low on defense!",
-        "A block contact does NOT count as the team's first of three allowed touches.",
-        "Rule Check: It is a fault to touch the net while actively playing the ball.",
-        "Communication: Always call 'Mine!' early and loudly to prevent collisions.",
-        "Serve Strategy: Deep serves are highly effective on outdoor earth courts.",
-        "Defense: Watch the server's tossing arm to predict the speed and trajectory.",
-        "Rule Check: Double contacts are legal on a team's first hard-driven defensive hit.",
-        "Setters: Always try to square your shoulders to the left antenna before setting.",
-        "Blockers: Press your hands over the net to seal the angle, don't just reach straight up.",
-        "Hitters: Ensure your final two approach steps are fast and explosive.",
-        "Earth Court Strategy: Anticipate the sun! Win the toss and make them stare into the glare.",
-        "Rule Check: You cannot block or spike an opponent's serve back at them.",
-        "Defense: Read the hitter's approach angle and shoulder drop to anticipate the spike.",
-        "A 'float serve' is highly effective outdoors where the wind makes it move unpredictably.",
-        "Rule Check: If a player crosses the center line completely with their foot, it's a fault.",
-        "Communication: Bench players should call 'In!' or 'Out!' to help the receivers.",
-        "Passers: Keep your platform away from your body to allow for quick angle adjustments.",
-        "Hitters: Snap your wrist at the peak of your jump to create heavy, dropping topspin.",
-        "Defense: Stay on the balls of your feet, not your heels, for explosive reaction times.",
-        "Blocking: The outside blocker sets the position; the middle blocker closes the seam.",
-        "Rule Check: If the ball hits the antenna at any time, it is immediately out of bounds.",
-        "Liberos: You are the defensive captain. Verbally command the back-row formation.",
-        "Earth Court Strategy: Wind in your face? Hit harder. Wind at your back? Use heavy topspin.",
-        "Rule Check: Never catch, scoop, or throw the ball; contacts must be brief and clean.",
-        "Setters: A 'dump' to the center of the court is a great way to catch the defense sleeping.",
-        "Momentum: Always celebrate the good points and instantly shake off the errors.",
-        "Mental Toughness: Volleyball isn't timed. You are never out of it until the final whistle.",
-        "Warmup: Proper shoulder activation is critical before attempting heavy spikes.",
-        "Rule Check: The Libero must wear a jersey of a contrasting color to the rest of the team.",
-        "Setters: If the pass is too tight to the net, jump to set it to avoid a back-row attack fault.",
-        "Defense: When digging a hard spike, angle your platform toward the center of the court.",
-        "Hitters: Use a 'tip' or 'dink' when you notice the opposing defense playing too deep.",
-        "Middle Blockers: Always transition off the net quickly so you are available for a quick set.",
-        "Servers: Take a deep breath and visualize your target zone before tossing the ball.",
-        "Rule Check: The ball may touch various parts of the body provided contacts are simultaneous.",
-        "Hydration: Outdoor matches drain energy fast. Drink water during every single timeout.",
-        "Strategy: Use your two timeouts strategically to break an opponent's scoring run.",
-        "Hitters: A 'tool' off the blocker's outside hand is just as valuable as a hard kill.",
-        "Defense: Don't swing your arms on a dig; let the ball hit your platform and absorb it.",
-        "Setters: You are the quarterback. Make the hitter's job as easy as possible.",
-        "Blockers: Keep your eyes open while blocking so you can see the hitter's arm swing.",
-        "Serve Strategy: Target the seam between two passers to cause confusion.",
-        "Earth Court Strategy: Deep, loose dirt will kill your jump height. Time your approach carefully.",
-        "Rule Check: A back-row player jumping from behind the 3-meter line may land inside it."
+        "Earth Court Strategy: Dirt surfaces create lower bounces; stay low on defense!"
     ];
 
     async function requestWakeLock() { try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch(e){} }
@@ -427,13 +402,22 @@
             document.getElementById('display-tourney-name').innerText = "CourtMaster Pro";
         }
         
-        if(match.isLive && !match.isPaused && !viewingArchive) resumeMatch();
+        // REFRESH AMNESIA FIX
+        let lastScreen = localStorage.getItem('cmp_last_screen');
+
+        if(match.isLive && !match.isPaused && !viewingArchive) {
+            resumeMatch();
+        } else if (lastScreen === 'dash' && league && !viewingArchive) {
+            showDash();
+        }
+        // Otherwise it automatically stays on the Home Screen
     };
 
     function hideAll() { document.querySelectorAll('.card, #scr-match').forEach(c => c.classList.add('hidden')); }
     
     function goHome() { 
         if(viewingArchive) { exitArchive(); return; }
+        localStorage.setItem('cmp_last_screen', 'home'); // Breadcrumb Drop
         hideAll(); 
         document.getElementById('daily-tip').innerText = tips[Math.floor(Math.random() * tips.length)];
         
@@ -703,6 +687,7 @@
     }
 
     function showDash() {
+        localStorage.setItem('cmp_last_screen', 'dash'); // Breadcrumb Drop
         hideAll(); document.getElementById('scr-dash').classList.remove('hidden');
         document.getElementById('display-tourney-name').innerText = league.name + (viewingArchive ? " (ARCHIVED)" : "");
         
@@ -974,6 +959,17 @@
         requestWakeLock(); resumeMatch();
     }
 
+    function abortMatch() { 
+        if(confirm("Abort match? This will completely erase the current match data.")) { 
+            clearInterval(timerInt); 
+            match.isLive = false; 
+            match.isPaused = false;
+            localStorage.removeItem(MATCH_KEY); // THE ZOMBIE BUG FIX
+            save(); 
+            showDash(); 
+        } 
+    }
+
     function forfeitMatch() {
         document.getElementById('forfeit-select').innerHTML = `
             <option value="1">${league.teams[match.t1Idx].name}</option>
@@ -1020,6 +1016,9 @@
 
     function resumeMatch() {
         match.isPaused = false; 
+        localStorage.setItem('cmp_last_screen', 'match');
+        history.pushState({ inMatch: true }, ""); // BACK BUTTON TRAP SETUP
+
         hideAll(); document.getElementById('scr-match').classList.remove('hidden');
         document.getElementById('m-name-t1').innerText = league.teams[match.t1Idx].name; document.getElementById('m-name-t1').style.backgroundColor = match.colors.t1;
         document.getElementById('m-name-t2').innerText = league.teams[match.t2Idx].name; document.getElementById('m-name-t2').style.backgroundColor = match.colors.t2;
@@ -1054,15 +1053,12 @@
     }
     function endTimeout() { clearInterval(timeoutInt); document.getElementById('modal-timeout').style.display='none'; }
 
-    // FIX: DYNAMIC UI MODAL
     function openPtModal(s) { 
         activeSide = s; 
         
-        // Build buttons dynamically based on serving logic
         let btnHTML = `<button class="player-btn" onclick="setPtAction('Kill')">💥 Spike / Kill</button>
                        <button class="player-btn" onclick="setPtAction('Block')">🧱 Block Point</button>`;
         
-        // Only show Service Ace if the selected team is currently serving
         if(match.winner === s) {
             btnHTML += `<button class="player-btn" onclick="setPtAction('Ace')">🎯 Service Ace</button>`;
         }
@@ -1079,6 +1075,11 @@
         activeAction = act; document.getElementById('modal-pt-type').style.display='none';
         
         if(act==='Ace') { 
+            if (match.winner && activeSide !== match.winner) {
+                alert("Rule Violation: The receiving team cannot legally score a Service Ace!");
+                document.getElementById('modal-pt-type').style.display='flex';
+                return;
+            }
             let sName = match.court[activeSide][0].name; 
             if(sName === match.libs[activeSide]) {
                 alert("Rule Violation: Libero cannot serve for an Ace!");
@@ -1317,7 +1318,6 @@
         } 
     }
     
-    function abortMatch() { if(confirm("Abort match? This will completely erase the current match data.")) { clearInterval(timerInt); match.isLive = false; showDash(); } }
     function saveState() { let h = match.history; match.history=[]; let s = {m:JSON.stringify(match), l:JSON.stringify(league)}; match.history=h; match.history.push(s); }
     function undo() { 
         if(match.history.length) { 
