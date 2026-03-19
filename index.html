@@ -12,7 +12,6 @@
     <link rel="apple-touch-icon" href="icon-192.png">
 
     <style>
-        /* KILLS PULL-TO-REFRESH DEAD */
         body { font-family: -apple-system, sans-serif; background-color: #e3f2fd; padding: 15px; text-align: center; margin: 0; position: relative; min-height: 100vh; overflow-x: hidden; overscroll-behavior-y: none; }
         
         #bg-emoji { position: fixed; bottom: -5vh; right: -5vw; font-size: 35vh; opacity: 0.15; z-index: 0; pointer-events: none; user-select: none; line-height: 1; }
@@ -173,7 +172,10 @@
 
         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px;">
             <h3 style="color:#1a73e8; margin:0;">Team Standings (FIVB)</h3>
-            <button id="btn-edit-teams" class="btn btn-blue" style="width:auto; margin:0; padding:6px 12px; font-size:0.85em;" onclick="editTeamsFromDash()">✏️ Edit Teams</button>
+            <div style="display:flex; gap:10px;">
+                <button id="btn-edit-teams" class="btn btn-blue" style="width:auto; margin:0; padding:6px 12px; font-size:0.85em;" onclick="editTeamsFromDash()">✏️ Teams</button>
+                <button id="btn-edit-tourney" class="btn btn-blue" style="width:auto; margin:0; padding:6px 12px; font-size:0.85em; background:#6c757d;" onclick="openTourneySettings()">⚙️ Settings</button>
+            </div>
         </div>
         
         <div class="table-container" style="margin-top:10px;"><table><thead><tr><th>Team</th><th>W</th><th>Pts</th><th>Set Ratio</th><th>Pt Ratio</th></tr></thead><tbody id="team-body"></tbody></table></div>
@@ -349,9 +351,22 @@
         <button class="btn" style="background:none; color:#555; margin-top:15px;" onclick="document.getElementById('modal-archives').style.display='none'">Close</button>
     </div></div>
 
+    <div id="modal-tourney-settings" class="modal"><div class="modal-content">
+        <h3 style="margin-top:0; color:#1a73e8;">Tournament Settings</h3>
+        <label style="font-size:0.85em; font-weight:bold; color:#555; text-align:left; display:block;">League Name:</label>
+        <input type="text" id="edit-tourney-name">
+        
+        <button class="btn" style="background:#ffc107; color:#333; margin-top:20px;" onclick="scrapPracticeMatches()">🗑️ Scrap Unplayed Practice Matches</button>
+        
+        <div style="display:flex; gap:10px; margin-top:15px;">
+            <button class="btn btn-green" style="flex:2;" onclick="saveTourneySettings()">Save Changes</button>
+            <button class="btn" style="background:#6c757d; color:white; flex:1;" onclick="document.getElementById('modal-tourney-settings').style.display='none'">Cancel</button>
+        </div>
+    </div></div>
+
 <script>
-    const DB_KEY = 'v_tourney_final_123'; 
-    const MATCH_KEY = 'v_active_match_t123';
+    const DB_KEY = 'v_tourney_final_125'; 
+    const MATCH_KEY = 'v_active_match_t125';
     const ARCHIVE_KEY = 'cmp_archives_v1';
     
     let league = JSON.parse(localStorage.getItem(DB_KEY)) || null;
@@ -532,6 +547,38 @@
         entryIdx = 0; startRoster();
     }
 
+    function openTourneySettings() {
+        if(!checkAdminPin()) return;
+        document.getElementById('edit-tourney-name').value = league.name;
+        document.getElementById('modal-tourney-settings').style.display = 'flex';
+    }
+
+    function saveTourneySettings() {
+        let n = document.getElementById('edit-tourney-name').value.trim();
+        if(n) league.name = n;
+        document.getElementById('modal-tourney-settings').style.display = 'none';
+        save(); showDash();
+    }
+
+    function scrapPracticeMatches() {
+        if(confirm("🚨 WARNING: This will permanently delete all UNPLAYED Practice Matches. Proceed?")) {
+            league.fixtures = league.fixtures.filter(f => !(f.type === 'Practice' && f.done === false));
+            document.getElementById('modal-tourney-settings').style.display = 'none';
+            save(); showDash();
+        }
+    }
+
+    function editMatchTime(idx) {
+        if(viewingArchive) return;
+        if(!checkAdminPin()) return;
+        let current = league.fixtures[idx].scheduledTime || "";
+        let newTime = prompt("Reschedule Match:\nEnter new date/time (e.g., Sat 4:00 PM):", current);
+        if(newTime !== null) {
+            league.fixtures[idx].scheduledTime = newTime.trim();
+            save(); showDash();
+        }
+    }
+
     function editTeamsFromDash() { 
         if(!checkAdminPin()) return;
         entryIdx = 0; startRoster(); 
@@ -576,8 +623,10 @@
         league.teams[entryIdx].roster_temp = players;
     }
 
+    // STAT PRESERVATION FIX
     function saveTeamRoster() {
         let players = [], jerseys = new Set(), nameRegex = /^[a-zA-Z\s]+$/, valid = true;
+        let oldRoster = league.teams[entryIdx].roster || [];
         
         document.querySelectorAll('#roster-inputs-container div').forEach(div => {
             let n = div.querySelector('.p-num').value.trim(), m = div.querySelector('.p-name').value.trim();
@@ -588,7 +637,18 @@
                 else if(jerseys.has(n)) { alert(`Duplicate Error: Jersey #${n} already used on this team.`); valid = false; }
                 else {
                     jerseys.add(n); 
-                    players.push({ name: `#${n} ${m}`, won:0, kills:0, blocks:0, aces:0, errors:0, num: n, n: m });
+                    
+                    // Look for existing player to preserve stats
+                    let oldPlayer = oldRoster.find(p => p.num === n);
+                    if (oldPlayer) {
+                        players.push({ 
+                            name: `#${n} ${m}`, won: oldPlayer.won, kills: oldPlayer.kills, 
+                            blocks: oldPlayer.blocks, aces: oldPlayer.aces, errors: oldPlayer.errors, 
+                            num: n, n: m 
+                        });
+                    } else {
+                        players.push({ name: `#${n} ${m}`, won:0, kills:0, blocks:0, aces:0, errors:0, num: n, n: m });
+                    }
                 }
             }
         });
@@ -677,6 +737,7 @@
         }
     }
 
+    // HEAD TO HEAD TIE BREAKER ADDED
     function getSortedTeams() {
         return [...league.teams].map((t, index) => {
             t.originalIndex = index; 
@@ -687,7 +748,17 @@
             if (b.wins !== a.wins) return b.wins - a.wins;
             if (b.points !== a.points) return b.points - a.points;
             if (b.setRatio !== a.setRatio) return b.setRatio - a.setRatio;
-            return b.ptRatio - a.ptRatio;
+            if (b.ptRatio !== a.ptRatio) return b.ptRatio - a.ptRatio;
+            
+            // H2H Loop
+            let h2h = league.fixtures.find(f => 
+                f.done && f.type !== 'Practice' &&
+                ((f.t1 === a.originalIndex && f.t2 === b.originalIndex) || (f.t1 === b.originalIndex && f.t2 === a.originalIndex))
+            );
+            if (h2h && h2h.winnerIdx !== undefined) {
+                return h2h.winnerIdx === a.originalIndex ? -1 : 1;
+            }
+            return 0;
         });
     }
 
@@ -700,6 +771,7 @@
         document.getElementById('archive-banner').style.display = viewingArchive ? 'flex' : 'none';
         document.getElementById('dash-action-buttons').style.display = viewingArchive ? 'none' : 'block';
         document.getElementById('btn-edit-teams').style.display = viewingArchive ? 'none' : 'inline-block';
+        document.getElementById('btn-edit-tourney').style.display = viewingArchive ? 'none' : 'inline-block';
         document.getElementById('dash-danger-buttons').style.display = viewingArchive ? 'none' : 'flex';
         
         document.getElementById('hdr-action-prac').style.display = viewingArchive ? 'none' : 'table-cell';
@@ -715,7 +787,7 @@
             else if (f.type === 'Pool Play') { label = `Match ${poolCounter++}`; } 
             else { label = f.type; }
             
-            let timeUI = f.scheduledTime ? `<span style="color:#555; font-size:0.9em;">${f.scheduledTime}</span>` : '';
+            let timeUI = f.scheduledTime ? `<span style="color:#555; font-size:0.9em; cursor:pointer; border-bottom:1px dashed #ccc;" onclick="editMatchTime(${i})" title="Tap to Edit Time">${f.scheduledTime}</span>` : `<span style="color:#999; font-size:0.8em; cursor:pointer; border-bottom:1px dashed #999;" onclick="editMatchTime(${i})">Set Time</span>`;
             if (f.done) timeUI = '<span style="color:#28a745;">Played ✅</span>';
 
             let isLiveMatch = (match.isLive && match.currentFixture === i);
@@ -745,8 +817,6 @@
         document.getElementById('practice-body').innerHTML = pracRows.join('');
         document.getElementById('fixture-body').innerHTML = offRows.join('');
         
-        // Hide the table container if there are no practice matches scheduled, 
-        // but leave the section and custom scrimmage button visible.
         document.getElementById('practice-table-container').style.display = pracRows.length > 0 ? 'block' : 'none';
 
         let sorted = getSortedTeams();
