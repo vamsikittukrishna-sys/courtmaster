@@ -70,6 +70,9 @@
         <button id="btn-home-start" class="btn btn-blue" onclick="startNewTournament()">Start New Season</button>
         <button id="btn-home-dash" class="btn btn-green hidden" onclick="showDash()">Resume Current Season</button>
         <button class="btn" style="background:#e9ecef; color:#333;" onclick="openArchives()">📂 View Past Seasons</button>
+        
+        <button class="btn" style="background:#28a745; color:white; margin-top: 20px;" onclick="document.getElementById('home-import-file').click()">📥 Import Season Backup</button>
+        <input type="file" id="home-import-file" style="display:none;" accept=".json" onchange="importBackup(event)">
     </div>
 
     <div id="scr-init" class="card hidden">
@@ -195,8 +198,8 @@
                 <button class="btn" style="background:#17a2b8; color:white; margin:0;" onclick="exportCSV()">📊 Export Stats to CSV</button>
                 <div style="display:flex; gap:10px;">
                     <button class="btn" style="background:#6c757d; color:white; margin:0; flex:1; font-size:0.9em;" onclick="exportBackup()">📤 Export Backup</button>
-                    <button class="btn" style="background:#28a745; color:white; margin:0; flex:1; font-size:0.9em;" onclick="document.getElementById('import-file').click()">📥 Import Backup</button>
-                    <input type="file" id="import-file" style="display:none;" accept=".json" onchange="importBackup(event)">
+                    <button class="btn" style="background:#28a745; color:white; margin:0; flex:1; font-size:0.9em;" onclick="document.getElementById('dash-import-file').click()">📥 Import Backup</button>
+                    <input type="file" id="dash-import-file" style="display:none;" accept=".json" onchange="importBackup(event)">
                 </div>
             </div>
 
@@ -376,8 +379,8 @@
     </div></div>
 
 <script>
-    const DB_KEY = 'v_tourney_final_127'; 
-    const MATCH_KEY = 'v_active_match_t127';
+    const DB_KEY = 'v_tourney_final_128'; 
+    const MATCH_KEY = 'v_active_match_t128';
     const ARCHIVE_KEY = 'cmp_archives_v1';
     
     let league = JSON.parse(localStorage.getItem(DB_KEY)) || null;
@@ -594,7 +597,6 @@
         }
     }
 
-    // NEW: NATIVE CALENDAR EDITOR INTEGRATION
     function editMatchTime(idx) {
         if(viewingArchive) return;
         if(!checkAdminPin()) return;
@@ -1205,10 +1207,11 @@
     }
     function endTimeout() { clearInterval(timeoutInt); document.getElementById('modal-timeout').style.display='none'; }
 
+    // DYNAMIC UI UPDATE
     function openPtModal(s) { 
         activeSide = s; 
         
-        let btnHTML = `<button class="player-btn" onclick="setPtAction('Kill')">💥 Spike / Kill</button>
+        let btnHTML = `<button class="player-btn" onclick="setPtAction('Kill')">💥 Spike / Tip (Kill)</button>
                        <button class="player-btn" onclick="setPtAction('Block')">🧱 Block Point</button>`;
         
         if(match.winner === s) {
