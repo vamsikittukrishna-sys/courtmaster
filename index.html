@@ -12,9 +12,10 @@
     <link rel="apple-touch-icon" href="icon-192.png">
 
     <style>
-        body { font-family: -apple-system, sans-serif; background-color: #e3f2fd; padding: 15px; text-align: center; margin: 0; position: relative; min-height: 100vh; overflow-x: hidden; overscroll-behavior-y: none; }
-        #bg-emoji { position: fixed; bottom: -5vh; right: -5vw; font-size: 35vh; opacity: 0.15; z-index: -1; pointer-events: none; user-select: none; line-height: 1; }
+        /* KILLS PULL-TO-REFRESH DEAD */
+        html, body { font-family: -apple-system, sans-serif; background-color: #e3f2fd; padding: 15px; text-align: center; margin: 0; position: relative; min-height: 100vh; overflow-x: hidden; overscroll-behavior-y: none; }
         
+        #bg-emoji { position: fixed; bottom: -5vh; right: -5vw; font-size: 35vh; opacity: 0.15; z-index: -1; pointer-events: none; user-select: none; line-height: 1; }
         .card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(8px); padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: inline-block; text-align: left; width: 100%; max-width: 750px; box-sizing: border-box; position: relative; z-index: 10; }
         .hidden { display: none !important; }
         
@@ -153,13 +154,14 @@
             <button class="btn" style="width:auto; margin:0; padding:6px 12px; background:white; color:#dc3545;" onclick="exitArchive()">Exit Archive</button>
         </div>
 
-        <button id="btn-dash-home" class="btn btn-blue" onclick="goHome()">← Back Home</button>
+        <h2 id="dash-tourney-name" style="color: #1a73e8; margin-top: 0; border-bottom: 2px solid #e3f2fd; padding-bottom: 10px;"></h2>
         
-        <h2 id="dash-tourney-name" style="color: #1a73e8; margin-top: 15px; border-bottom: 2px solid #e3f2fd; padding-bottom: 10px;"></h2>
-        
-        <div id="practice-section" style="display:none;">
-            <h3 style="color:#555;">Practice Matches</h3>
-            <div class="table-container"><table><thead><tr><th>Matchup</th><th>Schedule</th><th id="hdr-action-prac">Action</th></tr></thead><tbody id="practice-body"></tbody></table></div>
+        <div id="practice-section">
+            <h3 style="color:#1a73e8;">Practice Matches</h3>
+            <div id="practice-table-container" class="table-container" style="display:none;">
+                <table><thead><tr><th>Matchup</th><th>Schedule</th><th id="hdr-action-prac">Action</th></tr></thead><tbody id="practice-body"></tbody></table>
+            </div>
+            <button class="btn btn-blue" style="background:#6c757d; margin-top: 0; margin-bottom:20px;" onclick="startCustomMatch()">Custom Scrimmage Match</button>
         </div>
 
         <h3 style="color:#1a73e8;">Official Fixtures</h3>
@@ -167,7 +169,6 @@
         
         <div id="dash-action-buttons">
             <button id="btn-generate-playoffs" class="btn btn-green hidden" style="margin-bottom:20px; box-shadow: 0 4px 6px rgba(40,167,69,0.3);" onclick="generatePlayoffs()">🏆 Generate Playoffs</button>
-            <button class="btn btn-blue" style="background:#6c757d;" onclick="startCustomMatch()">Custom Scrimmage Match</button>
         </div>
 
         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px;">
@@ -184,6 +185,9 @@
         <div class="table-container"><table><thead><tr><th>Matchup</th><th>Score</th><th>Winner</th><th>Duration</th></tr></thead><tbody id="log-body"></tbody></table></div>
 
         <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 30px;">
+            
+            <button id="btn-dash-home" class="btn btn-blue" onclick="goHome()">← Back to Home Menu</button>
+            
             <div style="background:#f8f9fa; padding:15px; border-radius:8px; border:1px solid #ccc; display:flex; flex-direction:column; gap:10px;">
                 <h4 style="margin:0; color:#555;">Data Management</h4>
                 <button class="btn" style="background:#17a2b8; color:white; margin:0;" onclick="exportCSV()">📊 Export Stats to CSV</button>
@@ -346,8 +350,8 @@
     </div></div>
 
 <script>
-    const DB_KEY = 'v_tourney_final_121'; 
-    const MATCH_KEY = 'v_active_match_t121';
+    const DB_KEY = 'v_tourney_final_123'; 
+    const MATCH_KEY = 'v_active_match_t123';
     const ARCHIVE_KEY = 'cmp_archives_v1';
     
     let league = JSON.parse(localStorage.getItem(DB_KEY)) || null;
@@ -357,20 +361,19 @@
     let libAlerted = {t1: false, t2: false};
     let viewingArchive = false;
 
-    window.addEventListener('beforeunload', function(e) {
-        if (match && match.isLive && !match.isPaused) {
-            e.preventDefault();
-            e.returnValue = ''; 
+    window.addEventListener('popstate', function(e) {
+        if (match && match.isLive && !match.isPaused && !document.getElementById('scr-match').classList.contains('hidden')) {
+            history.pushState({ matchActive: true }, ""); 
+            if(confirm("⚠️ MATCH IN PROGRESS!\n\nAre you sure you want to leave? This will pause the timer.")) {
+                pauseToDash();
+            }
         }
     });
 
-    window.addEventListener('popstate', function(e) {
-        if (match && match.isLive && !match.isPaused && !document.getElementById('scr-match').classList.contains('hidden')) {
-            if(confirm("⚠️ MATCH IN PROGRESS! Are you sure you want to leave? This will pause the timer.")) {
-                pauseToDash();
-            } else {
-                history.pushState({ inMatch: true }, "");
-            }
+    window.addEventListener('beforeunload', function(e) {
+        if (match && match.isLive && !match.isPaused) {
+            e.preventDefault();
+            e.returnValue = 'Match in progress. Are you sure?'; 
         }
     });
 
@@ -692,7 +695,6 @@
         localStorage.setItem('cmp_last_screen', 'dash'); 
         hideAll(); document.getElementById('scr-dash').classList.remove('hidden');
         
-        // FIX: Inject the tournament name into the new dash header
         document.getElementById('dash-tourney-name').innerText = league.name + (viewingArchive ? " (ARCHIVED)" : "");
         
         document.getElementById('archive-banner').style.display = viewingArchive ? 'flex' : 'none';
@@ -743,8 +745,9 @@
         document.getElementById('practice-body').innerHTML = pracRows.join('');
         document.getElementById('fixture-body').innerHTML = offRows.join('');
         
-        // Hide the practice section completely if there are no practice matches
-        document.getElementById('practice-section').style.display = pracRows.length > 0 ? 'block' : 'none';
+        // Hide the table container if there are no practice matches scheduled, 
+        // but leave the section and custom scrimmage button visible.
+        document.getElementById('practice-table-container').style.display = pracRows.length > 0 ? 'block' : 'none';
 
         let sorted = getSortedTeams();
         document.getElementById('team-body').innerHTML = sorted.map(t => `<tr><td>${t.name}</td><td>${t.wins}</td><td>${t.points}</td><td>${t.setRatio === 999 ? 'MAX' : t.setRatio.toFixed(2)}</td><td>${t.ptRatio === 999 ? 'MAX' : t.ptRatio.toFixed(2)}</td></tr>`).join('');
@@ -981,7 +984,10 @@
             clearInterval(timerInt); 
             match.isLive = false; 
             match.isPaused = false;
+            
             localStorage.removeItem(MATCH_KEY); 
+            localStorage.setItem('cmp_last_screen', 'dash');
+            
             save(); 
             showDash(); 
         } 
@@ -1034,7 +1040,8 @@
     function resumeMatch() {
         match.isPaused = false; 
         localStorage.setItem('cmp_last_screen', 'match');
-        history.pushState({ inMatch: true }, ""); 
+        
+        history.pushState({ matchActive: true }, ""); 
 
         hideAll(); document.getElementById('scr-match').classList.remove('hidden');
         document.getElementById('m-name-t1').innerText = league.teams[match.t1Idx].name; document.getElementById('m-name-t1').style.backgroundColor = match.colors.t1;
