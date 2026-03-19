@@ -155,8 +155,15 @@
 
         <button id="btn-dash-home" class="btn btn-blue" onclick="goHome()">← Back Home</button>
         
-        <h3 style="color:#1a73e8;">Match Schedule & Fixtures</h3>
-        <div class="table-container"><table><thead><tr><th>Matchup</th><th>Schedule</th><th id="hdr-action">Action</th></tr></thead><tbody id="fixture-body"></tbody></table></div>
+        <h2 id="dash-tourney-name" style="color: #1a73e8; margin-top: 15px; border-bottom: 2px solid #e3f2fd; padding-bottom: 10px;"></h2>
+        
+        <div id="practice-section" style="display:none;">
+            <h3 style="color:#555;">Practice Matches</h3>
+            <div class="table-container"><table><thead><tr><th>Matchup</th><th>Schedule</th><th id="hdr-action-prac">Action</th></tr></thead><tbody id="practice-body"></tbody></table></div>
+        </div>
+
+        <h3 style="color:#1a73e8;">Official Fixtures</h3>
+        <div class="table-container"><table><thead><tr><th>Matchup</th><th>Schedule</th><th id="hdr-action-off">Action</th></tr></thead><tbody id="fixture-body"></tbody></table></div>
         
         <div id="dash-action-buttons">
             <button id="btn-generate-playoffs" class="btn btn-green hidden" style="margin-bottom:20px; box-shadow: 0 4px 6px rgba(40,167,69,0.3);" onclick="generatePlayoffs()">🏆 Generate Playoffs</button>
@@ -339,8 +346,8 @@
     </div></div>
 
 <script>
-    const DB_KEY = 'v_tourney_final_120'; 
-    const MATCH_KEY = 'v_active_match_t120';
+    const DB_KEY = 'v_tourney_final_121'; 
+    const MATCH_KEY = 'v_active_match_t121';
     const ARCHIVE_KEY = 'cmp_archives_v1';
     
     let league = JSON.parse(localStorage.getItem(DB_KEY)) || null;
@@ -350,21 +357,18 @@
     let libAlerted = {t1: false, t2: false};
     let viewingArchive = false;
 
-    // --- HARDWARE BACK BUTTON PREVENTER & REFRESH WARN ---
     window.addEventListener('beforeunload', function(e) {
         if (match && match.isLive && !match.isPaused) {
             e.preventDefault();
-            e.returnValue = ''; // Throws a browser confirmation prompt on refresh/close
+            e.returnValue = ''; 
         }
     });
 
     window.addEventListener('popstate', function(e) {
-        // If they swipe back while on the match screen
         if (match && match.isLive && !match.isPaused && !document.getElementById('scr-match').classList.contains('hidden')) {
             if(confirm("⚠️ MATCH IN PROGRESS! Are you sure you want to leave? This will pause the timer.")) {
                 pauseToDash();
             } else {
-                // They clicked cancel, re-push the lock
                 history.pushState({ inMatch: true }, "");
             }
         }
@@ -402,7 +406,6 @@
             document.getElementById('display-tourney-name').innerText = "CourtMaster Pro";
         }
         
-        // REFRESH AMNESIA FIX
         let lastScreen = localStorage.getItem('cmp_last_screen');
 
         if(match.isLive && !match.isPaused && !viewingArchive) {
@@ -410,14 +413,13 @@
         } else if (lastScreen === 'dash' && league && !viewingArchive) {
             showDash();
         }
-        // Otherwise it automatically stays on the Home Screen
     };
 
     function hideAll() { document.querySelectorAll('.card, #scr-match').forEach(c => c.classList.add('hidden')); }
     
     function goHome() { 
         if(viewingArchive) { exitArchive(); return; }
-        localStorage.setItem('cmp_last_screen', 'home'); // Breadcrumb Drop
+        localStorage.setItem('cmp_last_screen', 'home'); 
         hideAll(); 
         document.getElementById('daily-tip').innerText = tips[Math.floor(Math.random() * tips.length)];
         
@@ -687,19 +689,25 @@
     }
 
     function showDash() {
-        localStorage.setItem('cmp_last_screen', 'dash'); // Breadcrumb Drop
+        localStorage.setItem('cmp_last_screen', 'dash'); 
         hideAll(); document.getElementById('scr-dash').classList.remove('hidden');
-        document.getElementById('display-tourney-name').innerText = league.name + (viewingArchive ? " (ARCHIVED)" : "");
+        
+        // FIX: Inject the tournament name into the new dash header
+        document.getElementById('dash-tourney-name').innerText = league.name + (viewingArchive ? " (ARCHIVED)" : "");
         
         document.getElementById('archive-banner').style.display = viewingArchive ? 'flex' : 'none';
         document.getElementById('dash-action-buttons').style.display = viewingArchive ? 'none' : 'block';
         document.getElementById('btn-edit-teams').style.display = viewingArchive ? 'none' : 'inline-block';
         document.getElementById('dash-danger-buttons').style.display = viewingArchive ? 'none' : 'flex';
-        document.getElementById('hdr-action').style.display = viewingArchive ? 'none' : 'table-cell';
-        document.getElementById('btn-dash-home').innerText = viewingArchive ? "← Exit Archive" : "← Back Home";
+        
+        document.getElementById('hdr-action-prac').style.display = viewingArchive ? 'none' : 'table-cell';
+        document.getElementById('hdr-action-off').style.display = viewingArchive ? 'none' : 'table-cell';
 
+        let pracRows = [];
+        let offRows = [];
         let poolCounter = 1;
-        document.getElementById('fixture-body').innerHTML = league.fixtures.map((f, i) => {
+
+        league.fixtures.forEach((f, i) => {
             let label = '';
             if (f.type === 'Practice') { label = 'Practice Match'; } 
             else if (f.type === 'Pool Play') { label = `Match ${poolCounter++}`; } 
@@ -722,13 +730,22 @@
 
             let actionCol = viewingArchive ? '' : `<td>${actionBtn}</td>`;
 
-            return `<tr ${rowStyle}>
+            let rowHTML = `<tr ${rowStyle}>
                 <td><strong>${label}</strong>:<br>${league.teams[f.t1].name} <span style="color:#666; font-size:0.8em;">vs</span> ${league.teams[f.t2].name}</td>
                 <td>${timeUI}</td>
                 ${actionCol}
             </tr>`;
-        }).join('');
+
+            if (f.type === 'Practice') pracRows.push(rowHTML);
+            else offRows.push(rowHTML);
+        });
         
+        document.getElementById('practice-body').innerHTML = pracRows.join('');
+        document.getElementById('fixture-body').innerHTML = offRows.join('');
+        
+        // Hide the practice section completely if there are no practice matches
+        document.getElementById('practice-section').style.display = pracRows.length > 0 ? 'block' : 'none';
+
         let sorted = getSortedTeams();
         document.getElementById('team-body').innerHTML = sorted.map(t => `<tr><td>${t.name}</td><td>${t.wins}</td><td>${t.points}</td><td>${t.setRatio === 999 ? 'MAX' : t.setRatio.toFixed(2)}</td><td>${t.ptRatio === 999 ? 'MAX' : t.ptRatio.toFixed(2)}</td></tr>`).join('');
         
@@ -964,7 +981,7 @@
             clearInterval(timerInt); 
             match.isLive = false; 
             match.isPaused = false;
-            localStorage.removeItem(MATCH_KEY); // THE ZOMBIE BUG FIX
+            localStorage.removeItem(MATCH_KEY); 
             save(); 
             showDash(); 
         } 
@@ -1017,7 +1034,7 @@
     function resumeMatch() {
         match.isPaused = false; 
         localStorage.setItem('cmp_last_screen', 'match');
-        history.pushState({ inMatch: true }, ""); // BACK BUTTON TRAP SETUP
+        history.pushState({ inMatch: true }, ""); 
 
         hideAll(); document.getElementById('scr-match').classList.remove('hidden');
         document.getElementById('m-name-t1').innerText = league.teams[match.t1Idx].name; document.getElementById('m-name-t1').style.backgroundColor = match.colors.t1;
