@@ -24,6 +24,7 @@
         .btn:active { transform: scale(0.98); }
         .btn-blue { background: #1a73e8; color: white; }
         .btn-green { background: #28a745; color: white; }
+        .btn-gold { background: #d4af37; color: white; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); }
         
         .table-container { overflow-x: auto; margin-bottom: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         table { width: 100%; border-collapse: collapse; font-size: 0.85em; white-space: nowrap; }
@@ -45,17 +46,27 @@
         .br { background: #f1f8e9; color: #1b5e20; }
         .libero-text { color: #e67e22; font-weight: bold; font-style: italic; }
         
-        .coin-container { perspective: 1000px; display: flex; justify-content: center; margin: 15px 0; }
-        .coin { width: 90px; height: 90px; position: relative; transform-style: preserve-3d; transition: transform 2s cubic-bezier(0.2, 0.8, 0.2, 1); }
-        .coin-face { position: absolute; width: 100%; height: 100%; border-radius: 50%; backface-visibility: hidden; display: flex; justify-content: center; align-items: center; font-weight: bold; border: 4px solid #fff; box-shadow: 0 4px 8px rgba(0,0,0,0.2); padding: 5px; text-align: center; overflow: hidden; font-size: 0.7em; text-transform: uppercase; }
-        .coin-front { background: #ffc107; color: #333; }
-        .coin-back { background: #1a73e8; color: white; transform: rotateY(180deg); }
+        /* AUCTION ROOM SPECIFIC STYLES */
+        .auction-room { background: #121212; color: #f8f9fa; }
+        .scouting-card { display: flex; flex-direction: row; gap: 20px; background: #1e1e1e; padding: 20px; border-radius: 12px; border: 1px solid #333; margin-bottom: 20px; align-items: center; }
+        .scout-photo { width: 150px; height: 150px; border-radius: 12px; object-fit: cover; background: #333; border: 3px solid #555; }
+        .scout-details { flex: 1; text-align: left; }
+        .scout-name { font-size: 2em; margin: 0 0 5px 0; color: #fff; text-transform: uppercase; }
+        .scout-price { font-size: 1.8em; color: #28a745; margin: 10px 0; font-weight: bold; }
+        
+        .bracket-badge { display: inline-block; padding: 5px 10px; border-radius: 4px; font-weight: bold; font-size: 0.9em; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+        .badge-gladiator { background: #d4af37; color: #000; }
+        .badge-spartan { background: #c0c0c0; color: #000; }
+        .badge-centurion { background: #cd7f32; color: #fff; }
+        .badge-default { background: #1a73e8; color: #fff; }
+
+        .owner-dash { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+        .owner-box { flex: 1; min-width: 120px; background: #2a2a2a; padding: 10px; border-radius: 8px; border: 1px solid #444; text-align: center; font-size: 0.85em; }
+        .owner-purse { font-size: 1.2em; color: #28a745; font-weight: bold; display: block; margin-top: 5px; }
         
         .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: none; justify-content: center; align-items: center; z-index: 1000; }
         .modal-content { background: white; padding: 25px; border-radius: 12px; width: 320px; max-height: 80vh; overflow-y: auto; }
         .player-btn { background: #e3f2fd; border: 1px solid #1a73e8; padding: 12px; margin: 5px 0; width: 100%; border-radius: 8px; cursor: pointer; font-weight: bold; text-align: left; }
-        
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
     </style>
 </head>
 <body>
@@ -67,11 +78,16 @@
         <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 5px solid #ffc107;">
             <strong>💡 Match Tip:</strong> <span id="daily-tip"></span>
         </div>
-        <button id="btn-home-start" class="btn btn-blue" onclick="startNewTournament()">Start New Season</button>
-        <button id="btn-home-dash" class="btn btn-green hidden" onclick="showDash()">Resume Current Season</button>
-        <button class="btn" style="background:#e9ecef; color:#333;" onclick="openArchives()">📂 View Past Seasons</button>
         
-        <button class="btn" style="background:#28a745; color:white; margin-top: 20px;" onclick="document.getElementById('home-import-file').click()">📥 Import Season Backup</button>
+        <button id="btn-home-dash" class="btn btn-green hidden" onclick="showDash()">Resume Current Season</button>
+        
+        <div style="display:flex; gap:10px; margin-top:10px;">
+            <button class="btn btn-blue" style="flex:1; margin:0; font-size:0.9em;" onclick="startNewTournament()">Standard Setup</button>
+            <button class="btn btn-gold" style="flex:1; margin:0; font-size:0.9em;" onclick="startFranchiseMode()">👑 Franchise Draft</button>
+        </div>
+
+        <button class="btn" style="background:#e9ecef; color:#333; margin-top:15px;" onclick="openArchives()">📂 View Past Seasons</button>
+        <button class="btn" style="background:#28a745; color:white; margin-top: 10px;" onclick="document.getElementById('home-import-file').click()">📥 Import Season Backup</button>
         <input type="file" id="home-import-file" style="display:none;" accept=".json" onchange="importBackup(event)">
     </div>
 
@@ -133,6 +149,96 @@
         <button class="btn" style="background:none; color: #555;" onclick="goHome()">Cancel</button>
     </div>
 
+    <div id="scr-franchise-setup" class="card hidden">
+        <h2 style="color:#d4af37;">👑 Franchise Setup</h2>
+        <input type="text" id="fran-league-name" placeholder="League Name (e.g. Premier League 2026)">
+        
+        <div style="margin-top:15px;">
+            <label style="font-weight:bold; color:#555;">Number of Franchises:</label>
+            <select id="fran-team-count" onchange="renderFranchiseInputs()">
+                <option value="2">2 Teams</option>
+                <option value="3">3 Teams</option>
+                <option value="4" selected>4 Teams</option>
+                <option value="5">5 Teams</option>
+                <option value="6">6 Teams</option>
+            </select>
+        </div>
+
+        <div id="franchise-name-inputs" style="margin-top:15px; background:#f8f9fa; padding:15px; border-radius:8px; border:1px solid #ccc;">
+            </div>
+        
+        <div style="margin-top: 15px; background:#fff3cd; padding:10px; border-radius:8px; border:1px solid #ffeeba; text-align:left;">
+            <strong style="color:#856404;">🔒 Director Security</strong>
+            <div style="display: flex; gap: 10px; margin-top: 5px; align-items:center;">
+                <span style="font-size:0.85em; font-weight:bold; color:#555;">Admin PIN:</span>
+                <input type="password" id="fran-league-pin" placeholder="e.g. 1234" inputmode="numeric" maxlength="4" style="width:100px; margin:0;">
+            </div>
+        </div>
+
+        <button class="btn btn-gold" style="margin-top:20px;" onclick="initFranchiseLeague()">Enter Auction Room →</button>
+        <button class="btn" style="background:none; color: #555;" onclick="goHome()">Cancel</button>
+    </div>
+
+    <div id="scr-auction-room" class="card auction-room hidden">
+        <h2 style="margin-top:0; color:#d4af37;">Live Auction Vault</h2>
+        
+        <div id="auction-import-section" style="background:#2a2a2a; padding:20px; border-radius:12px; border:1px dashed #666; text-align:center;">
+            <p>Upload Player Pool CSV to Begin</p>
+            <p style="font-size:0.8em; color:#999;">Format: Name, Position, Bracket, BasePrice, Skill, Photo</p>
+            <button class="btn btn-blue" style="width:auto;" onclick="document.getElementById('csv-upload').click()">Upload .csv File</button>
+            <input type="file" id="csv-upload" style="display:none;" accept=".csv" onchange="handleCSVUpload(event)">
+        </div>
+
+        <div id="auction-stage" class="hidden">
+            <div class="owner-dash" id="owner-dash-container"></div>
+            
+            <div class="scouting-card">
+                <img id="auc-photo" class="scout-photo" src="" alt="Player">
+                <div class="scout-details">
+                    <div id="auc-bracket" class="bracket-badge">RANK</div>
+                    <h3 id="auc-name" class="scout-name">PLAYER NAME</h3>
+                    <div style="font-size:1.1em; color:#ccc; margin-bottom:5px;">Position: <strong id="auc-pos" style="color:white;">--</strong></div>
+                    <div style="font-size:1.1em; color:#ccc;">Skill: <strong id="auc-skill" style="color:white;">--</strong></div>
+                    <div class="scout-price">Base: ₹<span id="auc-price">--</span></div>
+                </div>
+            </div>
+
+            <div style="background:#2a2a2a; padding:15px; border-radius:12px; border:1px solid #444;">
+                <div style="display:flex; gap:10px;">
+                    <div style="flex:1;">
+                        <label style="font-size:0.8em; color:#999;">Winning Bidder:</label>
+                        <select id="auc-winner" style="background:#1e1e1e; color:white; border:1px solid #555;"></select>
+                    </div>
+                    <div style="flex:1;">
+                        <label style="font-size:0.8em; color:#999;">Final Amount (₹):</label>
+                        <input type="number" id="auc-amount" style="background:#1e1e1e; color:white; border:1px solid #555;">
+                    </div>
+                </div>
+                <div style="display:flex; gap:10px; margin-top:10px;">
+                    <button class="btn btn-gold" style="flex:2; font-size:1.2em;" onclick="sellPlayer()">🔨 SOLD!</button>
+                    <button class="btn" style="background:#dc3545; color:white; flex:1;" onclick="passPlayer()">Pass / Unsold</button>
+                </div>
+            </div>
+            <p style="text-align:center; color:#666; font-size:0.85em; margin-top:15px;">Players Remaining: <span id="auc-remaining">0</span></p>
+        </div>
+    </div>
+
+    <div id="scr-post-draft" class="card hidden">
+        <h2 style="color:#d4af37; margin-top:0;">Post-Draft Processing</h2>
+        <p style="font-size:0.85em; color:#555;">Assign Jersey Numbers and select the Team Captain.</p>
+        
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding-bottom:10px; border-bottom:1px solid #ddd;">
+            <h3 id="pd-team-title" style="margin:0;"></h3>
+            <input type="color" id="pd-team-color" style="width:50px; height:44px; padding:2px; border-radius:8px; border:1px solid #ccc; cursor:pointer; margin:0;" title="Team Jersey Color">
+        </div>
+
+        <div id="pd-roster-container" style="margin-top:10px; text-align:left;"></div>
+        
+        <div style="display:flex; gap:10px; margin-top:20px;">
+            <button class="btn btn-blue" id="btn-pd-save" style="flex:1;" onclick="saveFranchiseTeam()">Save & Next Team →</button>
+        </div>
+    </div>
+
     <div id="scr-roster" class="card hidden">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
             <h3 id="roster-title" style="margin:0;"></h3>
@@ -150,14 +256,11 @@
     </div>
 
     <div id="scr-dash" class="card hidden">
-        
         <div id="archive-banner" class="hidden" style="background:#dc3545; color:white; padding:15px; border-radius:8px; margin-bottom:20px; font-weight:bold; display:flex; justify-content:space-between; align-items:center;">
             <span>READ-ONLY ARCHIVE MODE</span>
             <button class="btn" style="width:auto; margin:0; padding:6px 12px; background:white; color:#dc3545;" onclick="exitArchive()">Exit Archive</button>
         </div>
-
         <h2 id="dash-tourney-name" style="color: #1a73e8; margin-top: 0; border-bottom: 2px solid #e3f2fd; padding-bottom: 10px;"></h2>
-        
         <div id="practice-section">
             <h3 style="color:#1a73e8;">Practice Matches</h3>
             <div id="practice-table-container" class="table-container" style="display:none;">
@@ -165,14 +268,11 @@
             </div>
             <button class="btn btn-blue" style="background:#6c757d; margin-top: 0; margin-bottom:20px;" onclick="startCustomMatch()">Custom Scrimmage Match</button>
         </div>
-
         <h3 style="color:#1a73e8;">Official Fixtures</h3>
         <div class="table-container"><table><thead><tr><th>Matchup</th><th>Schedule</th><th id="hdr-action-off">Action</th></tr></thead><tbody id="fixture-body"></tbody></table></div>
-        
         <div id="dash-action-buttons">
             <button id="btn-generate-playoffs" class="btn btn-green hidden" style="margin-bottom:20px; box-shadow: 0 4px 6px rgba(40,167,69,0.3);" onclick="generatePlayoffs()">🏆 Generate Playoffs</button>
         </div>
-
         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px;">
             <h3 style="color:#1a73e8; margin:0;">Team Standings (FIVB)</h3>
             <div style="display:flex; gap:10px;">
@@ -180,19 +280,13 @@
                 <button id="btn-edit-tourney" class="btn btn-blue" style="width:auto; margin:0; padding:6px 12px; font-size:0.85em; background:#6c757d;" onclick="openTourneySettings()">⚙️ Settings</button>
             </div>
         </div>
-        
         <div class="table-container" style="margin-top:10px;"><table><thead><tr><th>Team</th><th>W</th><th>Pts</th><th>Set Ratio</th><th>Pt Ratio</th></tr></thead><tbody id="team-body"></tbody></table></div>
-
         <h3 style="color:#1a73e8;">Player Analytics</h3>
         <div class="table-container"><table><thead><tr><th>Player</th><th>Team</th><th class="win-pt">Total</th><th>Kills</th><th>Blocks</th><th>Aces</th><th class="lose-pt">Errors</th></tr></thead><tbody id="leader-body"></tbody></table></div>
-
         <h3 style="color:#1a73e8;">Set History Log</h3>
         <div class="table-container"><table><thead><tr><th>Matchup</th><th>Score</th><th>Winner</th><th>Duration</th></tr></thead><tbody id="log-body"></tbody></table></div>
-
         <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 30px;">
-            
             <button id="btn-dash-home" class="btn btn-blue" onclick="goHome()">← Back to Home Menu</button>
-            
             <div style="background:#f8f9fa; padding:15px; border-radius:8px; border:1px solid #ccc; display:flex; flex-direction:column; gap:10px;">
                 <h4 style="margin:0; color:#555;">Data Management</h4>
                 <button class="btn" style="background:#17a2b8; color:white; margin:0;" onclick="exportCSV()">📊 Export Stats to CSV</button>
@@ -202,7 +296,6 @@
                     <input type="file" id="dash-import-file" style="display:none;" accept=".json" onchange="importBackup(event)">
                 </div>
             </div>
-
             <div id="dash-danger-buttons" style="display:flex; flex-direction:column; gap:10px; margin-top:10px;">
                 <button id="btn-archive-season" class="btn" style="background:#6c757d; color:white;" onclick="archiveSeason()">🔒 Archive Season</button>
                 <button class="btn" style="background:#ffc107; color:#333;" onclick="resetStandings()">Reset Standing Stats</button>
@@ -358,9 +451,7 @@
         <h3 style="margin-top:0; color:#1a73e8;">Tournament Settings</h3>
         <label style="font-size:0.85em; font-weight:bold; color:#555; text-align:left; display:block;">League Name:</label>
         <input type="text" id="edit-tourney-name">
-        
         <button class="btn" style="background:#ffc107; color:#333; margin-top:20px;" onclick="scrapPracticeMatches()">🗑️ Scrap Unplayed Practice Matches</button>
-        
         <div style="display:flex; gap:10px; margin-top:15px;">
             <button class="btn btn-green" style="flex:2; margin:0;" onclick="saveTourneySettings()">Save Changes</button>
             <button class="btn" style="background:#6c757d; color:white; flex:1; margin:0;" onclick="document.getElementById('modal-tourney-settings').style.display='none'">Cancel</button>
@@ -379,16 +470,31 @@
     </div></div>
 
 <script>
-    const DB_KEY = 'v_tourney_final_128'; 
-    const MATCH_KEY = 'v_active_match_t128';
+    // ⚙️ AUCTION CONFIGURATION VAULT
+    const AUCTION_CONFIG = {
+        budget: 10000,
+        maxRoster: 8,
+        limits: {
+            'Gladiator': 2,
+            'Spartan': 3,
+            'Centurion': 3
+        }
+    };
+
+    const DB_KEY = 'v_tourney_final_129'; 
+    const MATCH_KEY = 'v_active_match_t129';
     const ARCHIVE_KEY = 'cmp_archives_v1';
     
     let league = JSON.parse(localStorage.getItem(DB_KEY)) || null;
     let match = JSON.parse(localStorage.getItem(MATCH_KEY)) || { t1Idx:0, t2Idx:0, sets:{t1:0, t2:0}, subs:{t1:0, t2:0}, timeouts:{t1:0, t2:0}, score:{t1:0,t2:0}, court:{t1:[],t2:[]}, startingCourt:{t1:[],t2:[]}, libs:{t1:null,t2:null}, winner:null, history:[], isLive:false, isPaused: false, firstServers:[], swappedAt8:false, colors:{t1:'#1a73e8', t2:'#d69e2e'}, accumulatedTime: 0, isSwapped: false };
     
+    // Globals
     let entryIdx = 0, isFlipping = false, timerInt, timeoutInt, activeSide, activeAction, activeSubIdx, wakeLock = null;
     let libAlerted = {t1: false, t2: false};
     let viewingArchive = false;
+
+    // Auction State
+    let auctionState = { franchises: [], players: [], currentIndex: 0 };
 
     function pushHistoryTrap() {
         history.pushState({ trapped: true }, "");
@@ -396,15 +502,17 @@
 
     window.addEventListener('popstate', function(e) {
         if (!document.getElementById('scr-home').classList.contains('hidden')) return; 
-
         pushHistoryTrap(); 
-
         if (!document.getElementById('scr-match').classList.contains('hidden')) {
             if(confirm("⚠️ MATCH IN PROGRESS!\n\nAre you sure you want to leave? This will pause the timer.")) pauseToDash();
         } else if (!document.getElementById('scr-setup').classList.contains('hidden')) {
             cancelMatchSetup();
         } else if (!document.getElementById('scr-roster').classList.contains('hidden')) {
             prevTeam();
+        } else if (!document.getElementById('scr-franchise-setup').classList.contains('hidden')) {
+            goHome();
+        } else if (!document.getElementById('scr-auction-room').classList.contains('hidden') || !document.getElementById('scr-post-draft').classList.contains('hidden')) {
+            if(confirm("Abort Franchise Draft? All progress will be lost.")) goHome();
         } else if (!document.getElementById('scr-init').classList.contains('hidden')) {
             goHome();
         } else if (!document.getElementById('scr-dash').classList.contains('hidden')) {
@@ -414,8 +522,7 @@
 
     window.addEventListener('beforeunload', function(e) {
         if (match && match.isLive && !match.isPaused) {
-            e.preventDefault();
-            e.returnValue = 'Match in progress. Are you sure?'; 
+            e.preventDefault(); e.returnValue = 'Match in progress. Are you sure?'; 
         }
     });
 
@@ -442,9 +549,7 @@
 
     window.onload = () => {
         document.getElementById('daily-tip').innerText = tips[Math.floor(Math.random() * tips.length)];
-        
         pushHistoryTrap(); 
-
         if(league) { 
             document.getElementById('btn-home-dash').classList.remove('hidden'); 
             document.getElementById('display-tourney-name').innerText = league.name; 
@@ -452,9 +557,7 @@
             document.getElementById('btn-home-dash').classList.add('hidden');
             document.getElementById('display-tourney-name').innerText = "CourtMaster Pro";
         }
-        
         let lastScreen = localStorage.getItem('cmp_last_screen');
-
         if(match.isLive && !match.isPaused && !viewingArchive) {
             resumeMatch();
         } else if (lastScreen === 'dash' && league && !viewingArchive) {
@@ -469,7 +572,6 @@
         localStorage.setItem('cmp_last_screen', 'home'); 
         hideAll(); 
         document.getElementById('daily-tip').innerText = tips[Math.floor(Math.random() * tips.length)];
-        
         if(league) { 
             document.getElementById('btn-home-dash').classList.remove('hidden'); 
             document.getElementById('display-tourney-name').innerText = league.name; 
@@ -477,10 +579,275 @@
             document.getElementById('btn-home-dash').classList.add('hidden');
             document.getElementById('display-tourney-name').innerText = "CourtMaster Pro";
         }
-        
         document.getElementById('scr-home').classList.remove('hidden'); 
     }
-    
+
+    // --- FRANCHISE AUCTION LOGIC ---
+    function startFranchiseMode() {
+        if(league && !confirm("Warning: Starting a new Franchise Draft will overwrite current tournament data. Proceed?")) return;
+        hideAll();
+        renderFranchiseInputs();
+        document.getElementById('scr-franchise-setup').classList.remove('hidden');
+    }
+
+    function renderFranchiseInputs() {
+        let count = parseInt(document.getElementById('fran-team-count').value);
+        let html = '';
+        for(let i=0; i<count; i++) {
+            html += `<input type="text" id="fran-name-${i}" placeholder="Franchise ${i+1} Name (e.g. Pune Titans)" style="margin-bottom:8px;">`;
+        }
+        document.getElementById('franchise-name-inputs').innerHTML = html;
+    }
+
+    function initFranchiseLeague() {
+        let name = document.getElementById('fran-league-name').value.trim() || "Franchise League 2026";
+        let aPin = document.getElementById('fran-league-pin').value.trim();
+        if (aPin && !/^\d{4}$/.test(aPin)) return alert("Error: Director PIN must be exactly 4 digits.");
+        if (!aPin) aPin = "0000";
+
+        let count = parseInt(document.getElementById('fran-team-count').value);
+        auctionState.franchises = [];
+        for(let i=0; i<count; i++) {
+            let fName = document.getElementById(`fran-name-${i}`).value.trim() || `Franchise ${i+1}`;
+            auctionState.franchises.push({
+                name: fName,
+                budget: AUCTION_CONFIG.budget,
+                roster: [],
+                counts: { 'Gladiator': 0, 'Spartan': 0, 'Centurion': 0 }
+            });
+        }
+        
+        // Base league object prepared early
+        league = { 
+            name, adminPin: aPin, teams: [], log: [], fixtures: [], rounds: 1, practiceRounds: 0, playoffStage: 0,
+            schedulePrefs: { startDate: new Date().toISOString().split('T')[0], type: 'weekends', matchesPerDay: 2 },
+            practicePrefs: null
+        };
+
+        hideAll();
+        document.getElementById('scr-auction-room').classList.remove('hidden');
+    }
+
+    function handleCSVUpload(event) {
+        let file = event.target.files[0];
+        if (!file) return;
+
+        let reader = new FileReader();
+        reader.onload = function(e) {
+            let lines = e.target.result.split('\n');
+            auctionState.players = [];
+            
+            // Skip header row (i=1 to end)
+            for(let i=1; i<lines.length; i++) {
+                if(!lines[i].trim()) continue;
+                // Basic CSV split
+                let cols = lines[i].split(',').map(c => c.trim());
+                if(cols.length >= 6) {
+                    auctionState.players.push({
+                        name: cols[0],
+                        pos: cols[1],
+                        bracket: cols[2],
+                        basePrice: parseInt(cols[3]) || 0,
+                        skill: cols[4],
+                        photo: cols[5]
+                    });
+                }
+            }
+            
+            // Fisher-Yates Shuffle for chaos
+            for (let i = auctionState.players.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [auctionState.players[i], auctionState.players[j]] = [auctionState.players[j], auctionState.players[i]];
+            }
+
+            auctionState.currentIndex = 0;
+            document.getElementById('auction-import-section').style.display = 'none';
+            document.getElementById('auction-stage').classList.remove('hidden');
+            renderAuctionPlayer();
+        };
+        reader.readAsText(file);
+    }
+
+    function renderAuctionPlayer() {
+        renderOwnerDash();
+        
+        if (auctionState.currentIndex >= auctionState.players.length) {
+            alert("Auction Complete! Proceeding to Post-Draft Polish.");
+            startPostDraft();
+            return;
+        }
+
+        let p = auctionState.players[auctionState.currentIndex];
+        document.getElementById('auc-remaining').innerText = (auctionState.players.length - auctionState.currentIndex);
+        
+        document.getElementById('auc-name').innerText = p.name;
+        document.getElementById('auc-pos').innerText = p.pos;
+        document.getElementById('auc-skill').innerText = p.skill;
+        document.getElementById('auc-price').innerText = p.basePrice;
+        
+        // Load photo from local GitHub folder path
+        document.getElementById('auc-photo').src = p.photo;
+        
+        let badge = document.getElementById('auc-bracket');
+        badge.innerText = p.bracket;
+        badge.className = 'bracket-badge'; // Reset
+        if(p.bracket.toUpperCase() === 'GLADIATOR') badge.classList.add('badge-gladiator');
+        else if(p.bracket.toUpperCase() === 'SPARTAN') badge.classList.add('badge-spartan');
+        else if(p.bracket.toUpperCase() === 'CENTURION') badge.classList.add('badge-centurion');
+        else badge.classList.add('badge-default');
+
+        // Render Dropdown for Winning Bidder, enforce limits
+        let dropHTML = `<option value="">Select Franchise...</option>`;
+        auctionState.franchises.forEach((f, i) => {
+            let limitHit = false;
+            let bracketKey = Object.keys(AUCTION_CONFIG.limits).find(k => k.toUpperCase() === p.bracket.toUpperCase());
+            if (bracketKey && f.counts[bracketKey] >= AUCTION_CONFIG.limits[bracketKey]) limitHit = true;
+            if (f.roster.length >= AUCTION_CONFIG.maxRoster) limitHit = true;
+            if (f.budget < p.basePrice) limitHit = true;
+
+            dropHTML += `<option value="${i}" ${limitHit ? 'disabled' : ''}>${f.name} ${limitHit ? '(Limit Reached)' : ''}</option>`;
+        });
+        document.getElementById('auc-winner').innerHTML = dropHTML;
+        document.getElementById('auc-amount').value = p.basePrice;
+    }
+
+    function renderOwnerDash() {
+        let html = '';
+        auctionState.franchises.forEach(f => {
+            html += `<div class="owner-box">
+                <strong style="color:white;">${f.name}</strong><br>
+                Roster: ${f.roster.length}/${AUCTION_CONFIG.maxRoster}
+                <span class="owner-purse">₹${f.budget}</span>
+            </div>`;
+        });
+        document.getElementById('owner-dash-container').innerHTML = html;
+    }
+
+    function sellPlayer() {
+        let fIdx = document.getElementById('auc-winner').value;
+        let amount = parseInt(document.getElementById('auc-amount').value);
+        let p = auctionState.players[auctionState.currentIndex];
+
+        if(fIdx === "") return alert("Select a Winning Franchise!");
+        if(isNaN(amount) || amount < p.basePrice) return alert(`Bid must be at least ₹${p.basePrice}.`);
+        
+        let fran = auctionState.franchises[fIdx];
+        if(fran.budget < amount) return alert("Insufficient Funds!");
+
+        fran.budget -= amount;
+        fran.roster.push(p);
+        
+        let bracketKey = Object.keys(AUCTION_CONFIG.limits).find(k => k.toUpperCase() === p.bracket.toUpperCase());
+        if(bracketKey) fran.counts[bracketKey]++;
+
+        auctionState.currentIndex++;
+        renderAuctionPlayer();
+    }
+
+    function passPlayer() {
+        if(confirm("Mark player as Unsold and skip?")) {
+            auctionState.currentIndex++;
+            renderAuctionPlayer();
+        }
+    }
+
+    // --- POST-DRAFT POLISH LOGIC ---
+    function startPostDraft() {
+        hideAll();
+        // Convert franchises to league.teams structure
+        league.teams = auctionState.franchises.map((f, i) => ({
+            name: f.name,
+            wins: 0, points: 0, setsWon: 0, setsLost: 0, rallyPointsWon: 0, rallyPointsLost: 0,
+            color: (i % 2 === 0 ? '#1a73e8' : '#d69e2e'), 
+            lastLineup: null, lastLibero: null,
+            drafted_players: f.roster // Temp holding
+        }));
+        
+        entryIdx = 0;
+        renderPostDraftTeam();
+        document.getElementById('scr-post-draft').classList.remove('hidden');
+    }
+
+    function renderPostDraftTeam() {
+        let t = league.teams[entryIdx];
+        document.getElementById('pd-team-title').innerText = `Setup: ${t.name} (${entryIdx+1}/${league.teams.length})`;
+        document.getElementById('pd-team-color').value = t.color;
+        
+        let btn = document.getElementById('btn-pd-save');
+        btn.innerText = entryIdx === league.teams.length - 1 ? "Finalize All Franchises →" : "Save & Next Team →";
+
+        let html = '';
+        if(t.drafted_players.length === 0) {
+            html = `<p style="color:#dc3545;">No players drafted for this franchise. Please add dummy players or restart.</p>`;
+        } else {
+            t.drafted_players.forEach((p, i) => {
+                html += `
+                <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px; background:#f8f9fa; padding:10px; border-radius:8px; border:1px solid #ccc;">
+                    <input type="text" class="pd-num" placeholder="#" style="width:50px; text-align:center;" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+                    <div style="flex:1;">
+                        <strong style="color:#1a73e8;">${p.name}</strong> <span style="font-size:0.8em; color:#666;">(${p.pos})</span>
+                        <input type="hidden" class="pd-name" value="${p.name}">
+                    </div>
+                    <div>
+                        <input type="radio" name="pd-cap" id="cap-${i}" value="${i}" ${i===0?'checked':''}>
+                        <label for="cap-${i}" style="font-size:0.8em; font-weight:bold; cursor:pointer;">Captain 👑</label>
+                    </div>
+                </div>`;
+            });
+        }
+        document.getElementById('pd-roster-container').innerHTML = html;
+    }
+
+    function saveFranchiseTeam() {
+        let t = league.teams[entryIdx];
+        let numInputs = document.querySelectorAll('.pd-num');
+        let nameInputs = document.querySelectorAll('.pd-name');
+        let capIdx = document.querySelector('input[name="pd-cap"]:checked');
+        
+        if(!capIdx && t.drafted_players.length > 0) return alert("Please select a Captain.");
+        capIdx = capIdx ? parseInt(capIdx.value) : -1;
+
+        let players = [];
+        let jerseys = new Set();
+        let valid = true;
+
+        for(let i=0; i<t.drafted_players.length; i++) {
+            let n = numInputs[i].value.trim();
+            let rawName = nameInputs[i].value;
+            
+            if(!n) { alert(`Player "${rawName}" needs a Jersey Number.`); valid = false; break; }
+            if(jerseys.has(n)) { alert(`Duplicate Jersey #${n} used.`); valid = false; break; }
+            jerseys.add(n);
+
+            let isCap = (i === capIdx);
+            let finalName = `#${n} ${rawName}` + (isCap ? " 👑" : "");
+
+            players.push({
+                name: finalName, won: 0, kills: 0, blocks: 0, aces: 0, errors: 0,
+                num: n, n: rawName, isCaptain: isCap
+            });
+        }
+
+        if(!valid) return;
+        if(players.length > 0 && players.length < 6) return alert("Warning: This team drafted less than 6 players and cannot legally play a match. You must edit them later.");
+
+        t.color = document.getElementById('pd-team-color').value;
+        t.roster = players;
+        delete t.drafted_players; // Cleanup
+
+        if (entryIdx < league.teams.length - 1) {
+            entryIdx++;
+            renderPostDraftTeam();
+        } else {
+            // Setup Complete, generate fixtures and go to dash
+            genFixtures();
+            applyAutoSchedule();
+            save();
+            showDash();
+        }
+    }
+
+    // --- STANDARD TOURNAMENT SETUP (Untouched) ---
     function startNewTournament() { 
         if(league && !confirm("Warning: Starting a new season will overwrite current data. Please Archive the current season first if you wish to save it. Proceed?")) return; 
         hideAll(); 
@@ -697,7 +1064,7 @@
             if(n || m) {
                 if(!n) { alert(`Validation Error: Player "${m}" is missing a jersey number.`); valid = false; }
                 else if(!m) { alert(`Validation Error: Jersey #${n} is missing a player name.`); valid = false; }
-                else if(!nameRegex.test(m)) { alert(`Validation Error: Names must contain letters only ("${m}").`); valid = false; }
+                else if(!nameRegex.test(m) && !m.includes("👑")) { alert(`Validation Error: Names must contain letters only ("${m}").`); valid = false; }
                 else if(jerseys.has(n)) { alert(`Duplicate Error: Jersey #${n} already used on this team.`); valid = false; }
                 else {
                     jerseys.add(n); 
@@ -1207,7 +1574,6 @@
     }
     function endTimeout() { clearInterval(timeoutInt); document.getElementById('modal-timeout').style.display='none'; }
 
-    // DYNAMIC UI UPDATE
     function openPtModal(s) { 
         activeSide = s; 
         
