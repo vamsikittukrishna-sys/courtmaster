@@ -83,7 +83,7 @@
         
         <div style="display:flex; gap:10px; margin-top:10px;">
             <button class="btn btn-blue" style="flex:1; margin:0; font-size:0.9em;" onclick="startNewTournament()">Standard Setup</button>
-            <button class="btn btn-gold" style="flex:1; margin:0; font-size:0.9em;" onclick="startFranchiseMode()">👑 Franchise Draft</button>
+            <button class="btn btn-gold" style="flex:1; margin:0; font-size:0.9em;" onclick="startFranchiseMode()">👑 Live Player Auction</button>
         </div>
 
         <button class="btn" style="background:#e9ecef; color:#333; margin-top:15px;" onclick="openArchives()">📂 View Past Seasons</button>
@@ -155,13 +155,7 @@
         
         <div style="margin-top:15px;">
             <label style="font-weight:bold; color:#555;">Number of Franchises:</label>
-            <select id="fran-team-count" onchange="renderFranchiseInputs()">
-                <option value="2">2 Teams</option>
-                <option value="3">3 Teams</option>
-                <option value="4" selected>4 Teams</option>
-                <option value="5">5 Teams</option>
-                <option value="6">6 Teams</option>
-            </select>
+            <input type="number" id="fran-team-count" value="4" min="2" max="16" onchange="renderFranchiseInputs()" style="width: 150px; margin: 0;">
         </div>
 
         <div id="franchise-name-inputs" style="margin-top:15px; background:#f8f9fa; padding:15px; border-radius:8px; border:1px solid #ccc;">
