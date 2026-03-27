@@ -45,6 +45,13 @@
         .fr { background: #e3f2fd; color: #0d47a1; }
         .br { background: #f1f8e9; color: #1b5e20; }
         .libero-text { color: #e67e22; font-weight: bold; font-style: italic; }
+
+        /* DIGITAL COIN STYLES */
+        .coin-container { width: 100px; height: 100px; margin: 0 auto 15px auto; perspective: 1000px; }
+        .coin { width: 100%; height: 100%; position: relative; transform-style: preserve-3d; transition: transform 2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .coin-face { position: absolute; width: 100%; height: 100%; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 24px; color: white; backface-visibility: hidden; border: 5px solid #ccc; box-sizing: border-box; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); }
+        .coin-front { background: #1a73e8; }
+        .coin-back { background: #d69e2e; transform: rotateY(180deg); }
         
         /* AUCTION ROOM SPECIFIC STYLES */
         .auction-room { background: #121212; color: #f8f9fa; }
@@ -89,7 +96,7 @@
         <button class="btn" style="background:#e9ecef; color:#333; margin-top:15px;" onclick="openArchives()">📂 View Past Seasons</button>
         <button class="btn" style="background:#17a2b8; color:white; margin-top: 10px;" onclick="startExhibitionMode()">⚡ Quick Exhibition Match</button>
         <button class="btn" style="background:#28a745; color:white; margin-top: 10px;" onclick="document.getElementById('home-import-file').click()">📥 Import Season Backup</button>
-      <input type="file" id="home-import-file" style="display:none;" accept=".json" onchange="importBackup(event)">
+        <input type="file" id="home-import-file" style="display:none;" accept=".json" onchange="importBackup(event)">
     </div>
 
     <div id="scr-init" class="card hidden">
@@ -234,7 +241,7 @@
         </div>
     </div>
 
-        <div id="scr-exhibition-setup" class="card hidden">
+    <div id="scr-exhibition-setup" class="card hidden">
         <h2 style="color:#17a2b8; margin-top:0;">⚡ Quick Exhibition</h2>
         <p style="font-size:0.85em; color:#666;">Enter at least 6 names per team to track rotations and stats.</p>
         <div style="display:flex; gap:10px;">
@@ -252,15 +259,6 @@
         <button class="btn btn-green" style="margin-top:20px;" onclick="launchExhibitionSetup()">To Coin Toss →</button>
         <button class="btn" style="background:none; color: #555;" onclick="goHome()">Cancel</button>
     </div>
-
-    <div id="modal-exhibition-stats" class="modal"><div class="modal-content" style="width: 95%; max-width: 600px;">
-        <h2 style="margin-top:0; color:#17a2b8;">Final Box Score</h2>
-        <div id="exh-stats-container"></div>
-        <div style="display:flex; gap:10px; margin-top:20px;">
-            <button class="btn btn-blue" style="flex:1; margin:0;" onclick="rematchExhibition()">🔄 Play Rematch</button>
-            <button class="btn" style="background:#dc3545; color:white; flex:1; margin:0;" onclick="endExhibition()">🛑 End & Exit</button>
-        </div>
-    </div></div>
 
     <div id="scr-roster" class="card hidden">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
@@ -489,6 +487,15 @@
         <div style="display:flex; gap:10px; margin-top:15px;">
             <button class="btn btn-green" style="flex:2; margin:0;" onclick="saveMatchTime()">Save Time</button>
             <button class="btn" style="background:#6c757d; color:white; flex:1; margin:0;" onclick="document.getElementById('modal-edit-time').style.display='none'">Cancel</button>
+        </div>
+    </div></div>
+
+    <div id="modal-exhibition-stats" class="modal"><div class="modal-content" style="width: 95%; max-width: 600px;">
+        <h2 style="margin-top:0; color:#17a2b8;">Final Box Score</h2>
+        <div id="exh-stats-container"></div>
+        <div style="display:flex; gap:10px; margin-top:20px;">
+            <button class="btn btn-blue" style="flex:1; margin:0;" onclick="rematchExhibition()">🔄 Play Rematch</button>
+            <button class="btn" style="background:#dc3545; color:white; flex:1; margin:0;" onclick="endExhibition()">🛑 End & Exit</button>
         </div>
     </div></div>
 
@@ -870,7 +877,7 @@
         }
     }
 
-    // --- STANDARD TOURNAMENT SETUP (Untouched) ---
+    // --- STANDARD TOURNAMENT SETUP ---
     function startNewTournament() { 
         if(league && !confirm("Warning: Starting a new season will overwrite current data. Please Archive the current season first if you wish to save it. Proceed?")) return; 
         hideAll(); 
@@ -1193,7 +1200,7 @@
         return [...league.teams].map((t, index) => {
             t.originalIndex = index; 
             t.setRatio = t.setsLost === 0 ? (t.setsWon > 0 ? 999 : 0) : (t.setsWon / t.setsLost);
-            t.ptRatio = t.rallyPointsLost === 0 ? (t.rallyPointsWon > 0 ? 999 : 0) : (t.rallyPointsWon / t.rallyPointsLost);
+            t.ptRatio = t.rallyPointsLost === 0 ? (t.rallyPointsWon > 0 ? 999 : 0) : (t.rallyPointsLost === 0 && t.rallyPointsWon === 0 ? 0 : t.rallyPointsWon / t.rallyPointsLost);
             return t;
         }).sort((a,b) => {
             if (b.wins !== a.wins) return b.wins - a.wins;
@@ -1776,7 +1783,7 @@
         } else if(match.currentFixture !== null) {
             league.fixtures[match.currentFixture].done = true;
         }
-                match.isLive = false; match.sets = {t1:0, t2:0}; localStorage.removeItem(MATCH_KEY); save(); 
+        match.isLive = false; match.sets = {t1:0, t2:0}; localStorage.removeItem(MATCH_KEY); save(); 
         
         if (league.isExhibition) {
             showExhibitionBoxScore();
@@ -1784,7 +1791,8 @@
             alert("Match Saved to Dashboard!"); 
             showDash(); 
         }
-    } 
+    }
+    
     function nextSet() { 
         alert("Set Over! Please confirm lineups for the next set."); 
         match.score = {t1:0, t2:0}; match.subs = {t1:0, t2:0}; match.timeouts = {t1:0, t2:0}; match.winner = null; 
@@ -1875,14 +1883,16 @@
             render(); 
         } else alert("No actions to undo."); 
     }
-        function save() { 
+    
+    function save() { 
         if(!viewingArchive) { 
-            if(league && league.isExhibition) return; // The Firewall
+            if(league && league.isExhibition) return; 
             localStorage.setItem(DB_KEY, JSON.stringify(league)); 
             if(match.isLive) localStorage.setItem(MATCH_KEY, JSON.stringify(match)); 
         } 
     }
-        function wipeTournament() { 
+    
+    function wipeTournament() { 
         if(!checkAdminPin()) return;
         if(confirm("WARNING: WIPE ALL DATA FOREVER?")) { localStorage.clear(); location.reload(); } 
     }
@@ -1923,6 +1933,8 @@
             fixtures: [], log: []
         };
         
+        match = { t1Idx:0, t2Idx:0, sets:{t1:0, t2:0}, subs:{t1:0, t2:0}, timeouts:{t1:0, t2:0}, score:{t1:0,t2:0}, court:{t1:[],t2:[]}, startingCourt:{t1:[],t2:[]}, libs:{t1:null,t2:null}, winner:null, history:[], isLive:false, isPaused: false, firstServers:[], swappedAt8:false, colors:{t1:t1Color, t2:t2Color}, accumulatedTime: 0, isSwapped: false };
+        
         match.currentFixture = null;
         match.isScrimmage = false; 
         prepMatch(0, 1);
@@ -1957,7 +1969,6 @@
         match = JSON.parse(localStorage.getItem(MATCH_KEY)) || { t1Idx:0, t2Idx:0, sets:{t1:0, t2:0}, subs:{t1:0, t2:0}, timeouts:{t1:0, t2:0}, score:{t1:0,t2:0}, court:{t1:[],t2:[]}, startingCourt:{t1:[],t2:[]}, libs:{t1:null,t2:null}, winner:null, history:[], isLive:false, isPaused: false, firstServers:[], swappedAt8:false, colors:{t1:'#1a73e8', t2:'#d69e2e'}, accumulatedTime: 0, isSwapped: false };
         goHome();
     }
-</script>
 </script>
 <script>
     if ('serviceWorker' in navigator) {
