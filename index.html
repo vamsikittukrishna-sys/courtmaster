@@ -1940,20 +1940,50 @@
         prepMatch(0, 1);
     }
 
-    function showExhibitionBoxScore() {
-        let html = '<div style="display:flex; gap:10px; text-align:left; flex-wrap:wrap;">';
-        league.teams.forEach(t => {
-            html += `<div style="flex:1; min-width:240px;">
-                <h4 style="color:${t.color}; margin: 5px 0;">${t.name} Stats</h4>
-                <table style="width:100%; font-size:0.85em; border-collapse:collapse;">
-                    <tr style="background:#eee;"><th>Name</th><th>K</th><th>B</th><th>A</th><th>E</th></tr>
-                    ${t.roster.map(p => `<tr><td>${p.name}</td><td>${p.kills}</td><td>${p.blocks}</td><td>${p.aces}</td><td>${p.errors}</td></tr>`).join('')}
-                </table>
-            </div>`;
-        });
-        html += '</div>';
-        
-        document.getElementById('exh-stats-container').innerHTML = html;
+        function showExhibitionBoxScore() {
+        // 1. Team Match Summary Table
+        let teamHtml = `
+        <h3 style="color:#1a73e8; margin-top:0; text-align:left; border-bottom: 2px solid #e3f2fd; padding-bottom: 5px;">Match Summary</h3>
+        <div class="table-container">
+            <table>
+                <thead><tr><th>Team</th><th>Sets Won</th><th>Total Pts</th></tr></thead>
+                <tbody>
+                    ${league.teams.map(t => `<tr>
+                        <td><strong style="color:${t.color}">${t.name}</strong></td>
+                        <td>${t.setsWon}</td>
+                        <td>${t.rallyPointsWon}</td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>
+        </div>`;
+
+        // 2. Unified Player Analytics Table
+        let players = [];
+        league.teams.forEach(t => t.roster.forEach(pl => players.push({n:pl.name, t:t.name, c:t.color, ...pl})));
+        players.sort((a,b) => b.won - a.won); // Sorts highest scorers to the top
+
+        let playerHtml = `
+        <h3 style="color:#1a73e8; margin-top:20px; text-align:left; border-bottom: 2px solid #e3f2fd; padding-bottom: 5px;">Player Analytics</h3>
+        <div class="table-container" style="max-height: 300px; overflow-y: auto;">
+            <table>
+                <thead>
+                    <tr><th>Player</th><th>Team</th><th class="win-pt">Total</th><th>Kills</th><th>Blocks</th><th>Aces</th><th class="lose-pt">Errors</th></tr>
+                </thead>
+                <tbody>
+                    ${players.map(x => `<tr>
+                        <td><strong>${x.n}</strong></td>
+                        <td style="color:${x.c}; font-weight:bold; font-size:0.85em;">${x.t}</td>
+                        <td class="win-pt">${x.won}</td>
+                        <td>${x.kills}</td>
+                        <td>${x.blocks}</td>
+                        <td>${x.aces}</td>
+                        <td class="lose-pt">${x.errors}</td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>
+        </div>`;
+
+        document.getElementById('exh-stats-container').innerHTML = teamHtml + playerHtml;
         document.getElementById('modal-exhibition-stats').style.display = 'flex';
     }
 
