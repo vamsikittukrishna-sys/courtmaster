@@ -1,4 +1,4 @@
-const CACHE_NAME = 'courtmaster-pro-v134';
+const CACHE_NAME = 'courtmaster-pro-v135';
 const urlsToCache = ['./', './index.html', './manifest.json', './icon-192.png'];
 
 // The Magic Cache Buster
