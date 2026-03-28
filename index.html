@@ -1365,11 +1365,11 @@
         document.getElementById('sel-t1').disabled = isOfficial;
         document.getElementById('sel-t2').disabled = isOfficial;
 
-        if (isOfficial) {
+                if (isOfficial) {
             let f = league.fixtures[match.currentFixture];
             match.isScrimmage = (f.type === 'Practice');
         } else {
-            match.isScrimmage = true; 
+            match.isScrimmage = (league && league.isExhibition) ? false : true; 
         }
 
         syncToss(); 
